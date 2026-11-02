@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { LogoMark, STORE_NAME } from '@/components/Logo'
 import { cn } from '@/lib/cn'
+import { useLowStockCount } from '@/features/stock/useLowStockCount'
 import { canAccess, mainNav, roleLabels, settingsNav, type NavItem } from './nav'
 
 function initials(name: string): string {
@@ -20,12 +21,20 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-brand-100 text-[#0F2A1F] hover:text-[#0F2A1F]' : 'text-[#C9D6CF] hover:bg-brand-800 hover:text-white',
   )
 
-function SidebarLink({ item }: { item: NavItem }) {
+function SidebarLink({ item, badge }: { item: NavItem; badge?: number }) {
   const Icon = item.icon
   return (
     <NavLink to={item.to} end={item.to === '/'} className={navClass}>
       <Icon className="size-[18px]" aria-hidden />
       {item.label}
+      {badge ? (
+        <span
+          className="ml-auto rounded-full bg-warn-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-warn-700"
+          title={`${badge} produkte nën minimum`}
+        >
+          {badge}
+        </span>
+      ) : null}
     </NavLink>
   )
 }
@@ -34,6 +43,7 @@ export function Sidebar() {
   const { profile, signOut } = useAuth()
   const role = profile?.role
   const name = profile?.full_name ?? ''
+  const lowStock = useLowStockCount(role === 'admin' || role === 'manager')
 
   return (
     <nav
@@ -49,7 +59,7 @@ export function Sidebar() {
       </div>
 
       {mainNav.filter((item) => canAccess(item, role)).map((item) => (
-        <SidebarLink key={item.to} item={item} />
+        <SidebarLink key={item.to} item={item} badge={item.to === '/stoku' ? lowStock : undefined} />
       ))}
 
       <div className="min-h-6 grow" />

@@ -45,6 +45,55 @@ export type PosProduct = Pick<
   'id' | 'barcode' | 'name' | 'category_id' | 'unit' | 'sale_price' | 'vat_rate' | 'stock' | 'min_stock'
 >
 
+export interface Supplier {
+  id: number
+  name: string
+  nui: string | null
+  phone: string | null
+  payment_days: number | null
+}
+
+export type EntryStatus = 'draft' | 'confirmed'
+
+export interface StockEntry {
+  id: number
+  supplier_id: number | null
+  invoice_no: string | null
+  entry_date: string
+  payment_terms: string | null
+  note: string | null
+  status: EntryStatus
+  total_net: number
+  total_vat: number
+  total: number
+  created_at: string
+  confirmed_at: string | null
+}
+
+export interface StockEntryItem {
+  id: number
+  entry_id: number
+  product_id: number
+  quantity: number
+  /** Without VAT. */
+  unit_cost: number
+  vat_rate: VatRate
+}
+
+export type MovementType = 'sale' | 'entry' | 'writeoff' | 'inventory' | 'return'
+
+export interface StockMovement {
+  id: number
+  product_id: number
+  type: MovementType
+  /** Positive in, negative out. */
+  quantity: number
+  ref_id: number | null
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
 export type PaymentMethod = 'cash' | 'card'
 
 export interface Sale {

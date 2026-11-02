@@ -43,8 +43,8 @@ async function fetchAllProducts(): Promise<Product[]> {
   }
 }
 
-export function useProducts() {
-  return useQuery({ queryKey: productKeys.all, queryFn: fetchAllProducts })
+export function useProducts(enabled = true) {
+  return useQuery({ queryKey: productKeys.all, queryFn: fetchAllProducts, enabled })
 }
 
 export function useCategories() {
