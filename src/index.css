@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+  }
+  a {
+    @apply text-brand-600 hover:text-[#0A5039];
+  }
+}
