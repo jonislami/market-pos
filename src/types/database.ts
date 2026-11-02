@@ -38,3 +38,24 @@ export interface Product {
 
 /** Columns a manager may write; `stock` changes only through RPCs. */
 export type ProductInput = Omit<Product, 'id' | 'stock'>
+
+/** Row of the `pos_products` view: what the register may see (no purchase price). */
+export type PosProduct = Pick<
+  Product,
+  'id' | 'barcode' | 'name' | 'category_id' | 'unit' | 'sale_price' | 'vat_rate' | 'stock' | 'min_stock'
+>
+
+export type PaymentMethod = 'cash' | 'card'
+
+export interface Sale {
+  id: number
+  number: number
+  register_id: number | null
+  cashier_id: string | null
+  payment_method: PaymentMethod
+  total: number
+  total_vat: number
+  paid: number | null
+  change: number | null
+  created_at: string
+}
