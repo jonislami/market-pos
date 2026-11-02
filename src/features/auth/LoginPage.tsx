@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Check, Delete, Lock } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Check, Delete, LoaderCircle, Lock } from 'lucide-react'
 import { Button, Input, Tabs, Toggle } from '@/components/ui'
 import { LogoMark } from '@/components/Logo'
 import { cachedStoreName } from '@/features/settings/api'
@@ -8,7 +9,7 @@ import { homePathFor } from '@/app/nav'
 import { FullScreenLoader } from '@/app/AuthGuard'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { cn } from '@/lib/cn'
-import { useAuth } from './AuthProvider'
+import { fetchPinUsers, useAuth } from './AuthProvider'
 
 type Mode = 'manager' | 'pin'
 
@@ -116,17 +117,137 @@ function ManagerForm() {
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'] as const
 
-/** Visual-only PIN pad; cashier PIN login is implemented in Phase 7. */
-function PinPad() {
-  const [pin, setPin] = useState('')
+const LAST_PIN_USER = 'market-pos.last-pin-user'
 
-  function press(key: (typeof KEYS)[number]) {
-    if (key === 'del') setPin((p) => p.slice(0, -1))
-    else if (key) setPin((p) => (p.length < 4 ? p + key : p))
+function readLastPinUser(): string | null {
+  try {
+    return localStorage.getItem(LAST_PIN_USER)
+  } catch {
+    return null
+  }
+}
+
+/** Cashier login: pick your name once (remembered on this device), then type the 4-digit PIN. */
+function PinPad() {
+  const { signInWithPin } = useAuth()
+  const users = useQuery({ queryKey: ['pin-users'], queryFn: fetchPinUsers, retry: false, staleTime: 60_000 })
+  const [chosenId, setChosenId] = useState<string | null>(readLastPinUser)
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const list = users.data ?? []
+  // A single PIN user is chosen automatically; a remembered user only if still in the list.
+  const chosen = list.find((u) => u.id === chosenId) ?? (list.length === 1 ? list[0] : undefined)
+
+  const submit = useCallback(
+    async (code: string) => {
+      if (!chosen) return
+      setSubmitting(true)
+      setError(null)
+      try {
+        await signInWithPin(chosen.id, code)
+        try {
+          localStorage.setItem(LAST_PIN_USER, chosen.id)
+        } catch {
+          // Not critical.
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Hyrja dështoi.')
+        setPin('')
+      } finally {
+        setSubmitting(false)
+      }
+    },
+    [chosen, signInWithPin],
+  )
+
+  const press = useCallback(
+    (key: (typeof KEYS)[number]) => {
+      if (submitting) return
+      setError(null)
+      if (key === 'del') return setPin((p) => p.slice(0, -1))
+      if (!key || pin.length >= 4) return
+      const next = pin + key
+      setPin(next)
+      if (next.length === 4) void submit(next)
+    },
+    [pin, submit, submitting],
+  )
+
+  // Physical keyboard / numpad.
+  useEffect(() => {
+    if (!chosen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key)) press(e.key as (typeof KEYS)[number])
+      else if (e.key === 'Backspace') press('del')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [chosen, press])
+
+  if (users.isPending) {
+    return (
+      <div className="flex justify-center py-10">
+        <LoaderCircle className="size-7 animate-spin text-brand-600" aria-label="Duke u ngarkuar" />
+      </div>
+    )
+  }
+  if (users.error) {
+    return <p className="rounded-[10px] bg-amber-100 px-3 py-2.5 text-sm text-amber-700">{(users.error as Error).message}</p>
+  }
+  if (list.length === 0) {
+    return (
+      <p className="rounded-[10px] bg-amber-100 px-3 py-2.5 text-sm text-amber-700">
+        Asnjë arkëtar nuk ka PIN ende. Menaxheri e vendos te Cilësimet → Përdoruesit & PIN-et.
+      </p>
+    )
+  }
+
+  if (!chosen) {
+    return (
+      <div className="flex flex-col gap-3">
+        <span className="text-sm font-medium text-[#33413A]">Kush je?</span>
+        <div className="grid grid-cols-2 gap-2.5">
+          {list.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => setChosenId(u.id)}
+              className="flex min-h-[60px] items-center gap-2.5 rounded-xl border border-line bg-white px-3 text-left text-sm font-semibold hover:border-brand-600"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[13px] text-brand-600">
+                {u.full_name.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="truncate">{u.full_name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3 py-2.5">
+        <span className="text-sm">
+          <span className="text-muted">Arkëtari: </span>
+          <strong>{chosen.full_name}</strong>
+        </span>
+        {list.length > 1 && (
+          <button
+            type="button"
+            onClick={() => {
+              setChosenId(null)
+              setPin('')
+              setError(null)
+            }}
+            className="text-[13px] font-semibold text-brand-600 underline"
+          >
+            Ndërro
+          </button>
+        )}
+      </div>
       <div className="flex justify-center gap-4" aria-label={`${pin.length} nga 4 shifra`}>
         {[0, 1, 2, 3].map((i) => (
           <span
@@ -144,20 +265,25 @@ function PinPad() {
               key={i}
               type="button"
               onClick={() => press(key)}
+              disabled={submitting}
               aria-label={key === 'del' ? 'Fshi' : key}
-              className="flex min-h-[60px] items-center justify-center rounded-xl border border-line bg-white text-[22px] font-semibold text-ink hover:bg-[#F0F3F1]"
+              className="flex min-h-[60px] items-center justify-center rounded-xl border border-line bg-white text-[22px] font-semibold text-ink hover:bg-[#F0F3F1] disabled:opacity-60"
             >
               {key === 'del' ? <Delete className="size-6" aria-hidden /> : key}
             </button>
           ),
         )}
       </div>
-      <p className="rounded-[10px] bg-amber-100 px-3 py-2.5 text-center text-sm text-amber-700">
-        Hyrja me PIN për arkëtarët aktivizohet së shpejti.
-      </p>
-      <Button size="lg" block disabled>
-        Hyr
-      </Button>
+      {submitting && (
+        <p className="flex items-center justify-center gap-2 text-sm text-muted">
+          <LoaderCircle className="size-4 animate-spin" aria-hidden /> Duke hyrë…
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="rounded-[10px] bg-warn-100 px-3 py-2.5 text-center text-sm font-medium text-warn-700">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

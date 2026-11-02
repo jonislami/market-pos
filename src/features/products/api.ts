@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { cached } from '@/lib/offlineCache'
 import { supabase } from '@/lib/supabase'
 import type { Category, Product, ProductInput } from '@/types/database'
 
@@ -50,11 +51,12 @@ export function useProducts(enabled = true) {
 export function useCategories() {
   return useQuery({
     queryKey: productKeys.categories,
-    queryFn: async (): Promise<Category[]> => {
+    // Cached on the device: the register uses categories offline.
+    ...cached('categories', async (): Promise<Category[]> => {
       const { data, error } = await supabase.from('categories').select('id, name, sort_order').order('sort_order').order('name')
       if (error) throw error
       return data
-    },
+    }),
   })
 }
 

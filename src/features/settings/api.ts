@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { cached } from '@/lib/offlineCache'
 import { supabase } from '@/lib/supabase'
 import type { Profile, Register, StoreSettings, UserRole } from '@/types/database'
 
@@ -32,7 +33,8 @@ export function useStoreSettings(enabled = true) {
     queryKey: settingsKeys.store,
     enabled,
     staleTime: 5 * 60_000,
-    queryFn: async (): Promise<StoreSettings> => {
+    // Cached on the device: receipts print offline with the store's details.
+    ...cached('store-settings', async (): Promise<StoreSettings> => {
       const { data, error } = await supabase.from('store_settings').select('*').eq('id', 1).maybeSingle()
       if (error) throw error
       const s = { ...defaultSettings, ...(data ?? {}) } as StoreSettings
@@ -44,7 +46,7 @@ export function useStoreSettings(enabled = true) {
         // Not critical.
       }
       return s
-    },
+    }),
   })
 }
 
@@ -78,11 +80,11 @@ export function useSaveStoreSettings() {
 export function useRegisters() {
   return useQuery({
     queryKey: settingsKeys.registers,
-    queryFn: async (): Promise<Register[]> => {
+    ...cached('registers', async (): Promise<Register[]> => {
       const { data, error } = await supabase.from('registers').select('id, name, active').order('id')
       if (error) throw error
       return data
-    },
+    }),
   })
 }
 
@@ -104,15 +106,35 @@ export function useSaveRegister() {
 
 // ---------- Users ----------
 
+export interface ProfileRow extends Profile {
+  /** Null until migration 05 (computed column has_pin) has been run. */
+  has_pin: boolean | null
+}
+
 export function useProfiles(enabled = true) {
   return useQuery({
     queryKey: settingsKeys.profiles,
     enabled,
-    queryFn: async (): Promise<Profile[]> => {
+    queryFn: async (): Promise<ProfileRow[]> => {
+      const withPin = await supabase.from('profiles').select('id, full_name, role, active, created_at, has_pin').order('full_name')
+      if (!withPin.error) return withPin.data as ProfileRow[]
       const { data, error } = await supabase.from('profiles').select('id, full_name, role, active, created_at').order('full_name')
       if (error) throw error
-      return data as Profile[]
+      return (data as Profile[]).map((p) => ({ ...p, has_pin: null }))
     },
+  })
+}
+
+export function useSetPin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, pin }: { id: string; pin: string | null }) => {
+      const { error } = pin
+        ? await supabase.rpc('set_pin', { p_profile_id: id, p_pin: pin })
+        : await supabase.rpc('clear_pin', { p_profile_id: id })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.profiles }),
   })
 }
 

@@ -47,6 +47,8 @@ export function PosPage() {
   const createSale = useCreateSale()
   const cart = useCart()
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null)
+  /** Temporary number of a sale saved offline. */
+  const [saleLabel, setSaleLabel] = useState<string | null>(null)
   const [printStatus, setPrintStatus] = useState<PrintStatus>({ state: 'idle' })
 
   const [search, setSearch] = useState('')
@@ -159,13 +161,37 @@ export function PosPage() {
         items: totals.items.map((i) => ({ product_id: i.productId, quantity: i.qty })),
         payment: payment.method,
         paid: payment.method === 'cash' ? (cash.paid ?? expected) : null,
+        total: expected,
       },
       {
-        onSuccess: (s) => {
+        onSuccess: (result) => {
           cart.clear()
           setPayment({ method: 'cash', paidText: '' })
           setPayOpen(false)
+          if (result.kind === 'offline') {
+            // Saved on this device; it gets a real receipt number when the connection returns.
+            const p = result.pending
+            const paid = p.paid ?? p.total
+            const s: Sale = {
+              id: 0,
+              number: 0,
+              register_id: p.registerId,
+              cashier_id: profile?.id ?? null,
+              payment_method: p.payment,
+              total: p.total,
+              total_vat: 0,
+              paid,
+              change: Math.max(0, Math.round((paid - p.total) * 100) / 100),
+              created_at: p.createdAt,
+            }
+            setSale(s)
+            setSaleLabel(p.label)
+            void prepareReceipt(s, lines, false, p.label)
+            return
+          }
+          const s = result.sale
           setSale(s)
+          setSaleLabel(null)
           if (Math.abs(s.total - expected) > 0.001) {
             setNotice({ kind: 'warn', text: `Çmimet ishin përditësuar: totali i faturës është ${formatMoney(s.total)}` })
           }
@@ -191,7 +217,7 @@ export function PosPage() {
   }
 
   /** Builds the receipt for a finished sale and prints it when auto-print is on. */
-  async function prepareReceipt(s: Sale, lines: ReceiptItem[], pricesChanged: boolean) {
+  async function prepareReceipt(s: Sale, lines: ReceiptItem[], pricesChanged: boolean, offlineLabel?: string) {
     let items = lines
     if (pricesChanged) {
       // The server used newer prices: take the lines it stored (managers can read them; cashiers keep the cart lines).
@@ -209,6 +235,7 @@ export function PosPage() {
     const receipt: ReceiptData = {
       store: settings.data ?? defaultSettings,
       number: s.number,
+      numberLabel: offlineLabel,
       date: new Date(s.created_at),
       registerName: registerName.data ?? `Arka ${device.registerId}`,
       cashierName: profile?.full_name ?? '',
@@ -531,6 +558,7 @@ export function PosPage() {
 
       <SaleDoneDialog
         sale={sale}
+        offlineLabel={saleLabel}
         onClose={closeSale}
         printStatus={printStatus}
         onPrint={lastReceipt ? () => void runPrint({ ...lastReceipt, reprint: printStatus.state === 'done' }) : undefined}

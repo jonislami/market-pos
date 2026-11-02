@@ -198,11 +198,14 @@ export type PrintStatus = { state: 'idle' | 'printing' | 'done' } | { state: 'er
 /** Confirmation after create_sale succeeded; Enter starts the next sale. */
 export function SaleDoneDialog({
   sale,
+  offlineLabel,
   onClose,
   onPrint,
   printStatus,
 }: {
   sale: Sale | null
+  /** Set for sales saved offline (no receipt number yet). */
+  offlineLabel?: string | null
   onClose: () => void
   onPrint?: () => void
   printStatus: PrintStatus
@@ -230,7 +233,12 @@ export function SaleDoneDialog({
         <div className="flex flex-col items-center gap-4 text-center">
           <CircleCheck className="size-12 text-brand-600" aria-hidden />
           <div className="flex flex-col gap-1">
-            <span className="text-sm text-muted">Fatura {formatReceiptNo(sale.number)}</span>
+            <span className="text-sm text-muted">Fatura {offlineLabel ?? formatReceiptNo(sale.number)}</span>
+            {offlineLabel && (
+              <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                Pa internet – ruhet në këtë pajisje dhe dërgohet kur të kthehet lidhja
+              </span>
+            )}
             <span className="text-2xl font-bold tabular-nums">{formatMoney(sale.total)}</span>
             <span className="text-sm text-muted">{sale.payment_method === 'cash' ? 'Kesh' : 'Kartelë'}</span>
           </div>

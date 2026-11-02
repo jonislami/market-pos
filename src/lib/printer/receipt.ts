@@ -17,6 +17,8 @@ export interface ReceiptItem {
 export interface ReceiptData {
   store: StoreSettings
   number: number
+  /** Overrides the "#00487" number, e.g. the temporary "OFF-1-0003" of a sale made offline. */
+  numberLabel?: string
   date: Date
   registerName: string
   cashierName: string
@@ -91,7 +93,8 @@ export function buildReceiptLines(d: ReceiptData): ReceiptLine[] {
   if (d.reprint) lines.push({ kind: 'text', text: '*** KOPJE ***', align: 'center', bold: true })
   rule()
 
-  lines.push({ kind: 'text', text: pair('Fatura:', formatReceiptNo(d.number), w), bold: true })
+  const numberText = d.numberLabel ?? formatReceiptNo(d.number)
+  lines.push({ kind: 'text', text: pair('Fatura:', numberText, w), bold: true })
   lines.push({ kind: 'text', text: pair('Data:', `${formatDate(d.date)} ${formatTime(d.date)}`, w) })
   lines.push({ kind: 'text', text: pair('Arka:', d.registerName, w) })
   lines.push({ kind: 'text', text: pair('Arkëtari:', d.cashierName, w) })
@@ -125,7 +128,8 @@ export function buildReceiptLines(d: ReceiptData): ReceiptLine[] {
   rule()
   if (s.receipt_footer) lines.push({ kind: 'text', text: s.receipt_footer, align: 'center', bold: true })
   lines.push({ kind: 'text', text: 'Kupon jo-fiskal', align: 'center' })
-  if (s.show_barcode !== false) lines.push({ kind: 'barcode', data: String(d.number).padStart(5, '0') })
+  if (d.numberLabel) lines.push({ kind: 'text', text: 'Shitje pa internet', align: 'center' })
+  if (s.show_barcode !== false) lines.push({ kind: 'barcode', data: d.numberLabel ?? String(d.number).padStart(5, '0') })
   return lines
 }
 

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { PaymentMethod, PosProduct, Sale } from '@/types/database'
+import type { PaymentMethod, PosProduct } from '@/types/database'
 import { productKeys } from '@/features/products/api'
+import { cached } from '@/lib/offlineCache'
 import { getDeviceSettings } from '@/lib/printer/deviceSettings'
+import { submitSale, type SaleResult } from './offlineSales'
 
 export const posKeys = {
   products: ['pos-products'] as const,
@@ -38,7 +40,8 @@ async function fetchPosProducts(): Promise<PosProduct[]> {
 export function usePosProducts() {
   return useQuery({
     queryKey: posKeys.products,
-    queryFn: fetchPosProducts,
+    // The last copy is kept on the device so the register opens and sells without internet.
+    ...cached('pos-products', fetchPosProducts),
     // Prices and stock change from other devices; keep the register reasonably fresh.
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -60,11 +63,11 @@ export function useNextSaleNumber() {
 export function useRegisterName(id: number) {
   return useQuery({
     queryKey: posKeys.register(id),
-    queryFn: async () => {
+    ...cached(`register-name-${id}`, async () => {
       const { data, error } = await supabase.from('registers').select('name').eq('id', id).maybeSingle()
       if (error) throw error
-      return data?.name ?? `Arka ${id}`
-    },
+      return (data?.name as string | undefined) ?? `Arka ${id}`
+    }),
     staleTime: Infinity,
   })
 }
@@ -73,23 +76,18 @@ export interface CreateSaleArgs {
   items: { product_id: number; quantity: number }[]
   payment: PaymentMethod
   paid: number | null
+  /** Total shown at the till; kept for sales queued offline. */
+  total: number
 }
 
 export function useCreateSale() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ items, payment, paid }: CreateSaleArgs): Promise<Sale> => {
-      const { data, error } = await supabase.rpc('create_sale', {
-        p_items: items,
-        p_payment: payment,
-        p_paid: paid,
-        // Each device sells on the register chosen in Cilësimet → Arkat.
-        p_register: getDeviceSettings().registerId,
-      })
-      if (error) throw error
-      const s = data as Sale
-      return { ...s, total: Number(s.total), total_vat: Number(s.total_vat), paid: Number(s.paid), change: Number(s.change) }
-    },
+    // Must run while offline too: submitSale queues the sale instead of failing.
+    networkMode: 'always',
+    mutationFn: ({ items, payment, paid, total }: CreateSaleArgs): Promise<SaleResult> =>
+      // Each device sells on the register chosen in Cilësimet → Arkat.
+      submitSale({ items, payment, paid, registerId: getDeviceSettings().registerId }, total),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: posKeys.products })
       void qc.invalidateQueries({ queryKey: posKeys.nextNumber })

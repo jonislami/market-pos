@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/date'
 import { VAT_CODES, VAT_RATES } from '@/lib/vat'
 import type { Profile, Register, UserRole } from '@/types/database'
-import { settingsKeys, useProfiles, useRegisters, useSaveRegister, useUpdateProfile } from './api'
+import { settingsKeys, useProfiles, useRegisters, useSaveRegister, useSetPin, useUpdateProfile, type ProfileRow } from './api'
 import { StoreInfoFields, useSettingsDraft } from './PrinterSection'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -48,6 +48,10 @@ export function UsersSection() {
   const profiles = useProfiles()
   const [editing, setEditing] = useState<Profile | null>(null)
   const [adding, setAdding] = useState(false)
+  const [pinFor, setPinFor] = useState<ProfileRow | null>(null)
+  const pinSupported = (profiles.data ?? []).some((p) => p.has_pin !== null)
+  // Admin manages every PIN; a manager only cashiers' PINs (enforced again in set_pin).
+  const canSetPin = (p: ProfileRow) => pinSupported && (isAdmin || p.role === 'cashier')
 
   return (
     <div className="flex flex-col gap-5">
@@ -69,6 +73,7 @@ export function UsersSection() {
                 <TH className="pl-5">Emri</TH>
                 <TH>Roli</TH>
                 <TH>Statusi</TH>
+                <TH>PIN</TH>
                 <TH />
               </TR>
             </THead>
@@ -81,12 +86,20 @@ export function UsersSection() {
                   </TD>
                   <TD>{roleLabels[p.role]}</TD>
                   <TD>{p.active ? <Badge tone="success">Aktiv</Badge> : <Badge>Joaktiv</Badge>}</TD>
+                  <TD>{p.has_pin === null ? '—' : p.has_pin ? <Badge tone="success">I vendosur</Badge> : <Badge>Pa PIN</Badge>}</TD>
                   <TD className="pr-5 text-right">
-                    {isAdmin && (
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(p)}>
-                        Ndrysho
-                      </Button>
-                    )}
+                    <div className="flex justify-end gap-1">
+                      {canSetPin(p) && (
+                        <Button variant="ghost" size="sm" onClick={() => setPinFor(p)}>
+                          PIN
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(p)}>
+                          Ndrysho
+                        </Button>
+                      )}
+                    </div>
                   </TD>
                 </TR>
               ))}
@@ -100,17 +113,74 @@ export function UsersSection() {
         <ol className="list-decimal space-y-1 pl-5 text-muted">
           <li>
             Në Supabase hap <strong className="text-ink">Authentication → Users → Add user</strong>, shkruaj email-in dhe
-            fjalëkalimin, dhe zgjidh "Auto Confirm User".
+            fjalëkalimin, dhe zgjidh "Auto Confirm User". Për arkëtarët mjafton një email i brendshëm (p.sh.
+            arketari1@dyqani.local) dhe një fjalëkalim i gjatë – ata hyjnë me PIN.
           </li>
           <li>Kopjo "User UID" të përdoruesit të ri.</li>
           <li>Këtu shtyp "Shto profil", ngjit UID-në dhe zgjidh rolin.</li>
+          <li>Për arkëtarët shtyp "PIN" dhe vendos PIN-in me 4 shifra.</li>
         </ol>
-        <p className="text-muted">PIN-et për arkëtarët shtohen në Fazën 7.</p>
+        {!pinSupported && profiles.data && (
+          <p className="text-amber-700">PIN-et aktivizohen pasi të ekzekutohet migrimi 05 në Supabase.</p>
+        )}
       </Card>
 
       {editing && <ProfileDialog profile={editing} isSelf={editing.id === me?.id} onClose={() => setEditing(null)} />}
       {adding && <AddProfileDialog onClose={() => setAdding(false)} />}
+      {pinFor && <PinDialog profile={pinFor} onClose={() => setPinFor(null)} />}
     </div>
+  )
+}
+
+function PinDialog({ profile, onClose }: { profile: ProfileRow; onClose: () => void }) {
+  const setPin = useSetPin()
+  const [pin, setPinText] = useState('')
+  const [repeat, setRepeat] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  function save() {
+    setError(null)
+    if (!/^[0-9]{4}$/.test(pin)) return setError('PIN-i duhet të ketë saktësisht 4 shifra.')
+    if (pin !== repeat) return setError('PIN-et nuk përputhen.')
+    setPin.mutate({ id: profile.id, pin }, { onSuccess: onClose, onError: (e) => setError(errorMessage(e)) })
+  }
+
+  function clear() {
+    if (!window.confirm(`Hiq PIN-in e ${profile.full_name}? Nuk do të mund të hyjë më me PIN.`)) return
+    setPin.mutate({ id: profile.id, pin: null }, { onSuccess: onClose, onError: (e) => setError(errorMessage(e)) })
+  }
+
+  const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4)
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`PIN për ${profile.full_name}`}
+      size="sm"
+      footer={
+        <>
+          {profile.has_pin && (
+            <Button variant="ghost" className="text-warn-700 hover:text-warn-700" onClick={clear}>
+              Hiq PIN
+            </Button>
+          )}
+          <Button variant="secondary" className="ml-auto" onClick={onClose}>
+            Anulo
+          </Button>
+          <Button loading={setPin.isPending} onClick={save}>
+            Ruaj PIN
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3.5">
+        <Input label="PIN i ri (4 shifra)" type="password" inputMode="numeric" autoComplete="new-password" autoFocus value={pin} onChange={(e) => setPinText(digits(e.target.value))} className="text-center text-xl tracking-[0.5em]" />
+        <Input label="Përsërite PIN-in" type="password" inputMode="numeric" autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(digits(e.target.value))} className="text-center text-xl tracking-[0.5em]" />
+        <p className="text-[13px] text-muted">Pas 5 PIN-eve të gabuara, hyrja bllokohet për 15 minuta.</p>
+        {error && <p className="rounded-[10px] bg-warn-100 px-3 py-2.5 text-sm text-warn-700">{error}</p>}
+      </div>
+    </Dialog>
   )
 }
 
