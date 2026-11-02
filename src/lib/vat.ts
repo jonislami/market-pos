@@ -1,6 +1,9 @@
+import type { VatRate } from '@/types/database'
 import { roundMoney } from './money'
 
-export type VatRate = 0 | 8 | 18
+export type { VatRate }
+
+export const VAT_RATES: VatRate[] = [8, 18, 0]
 
 /** Receipt letter for each VAT rate. */
 export const VAT_CODES: Record<VatRate, string> = { 18: 'A', 8: 'B', 0: 'C' }
