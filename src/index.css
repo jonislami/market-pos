@@ -21,9 +21,29 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* No pull-to-refresh / rubber-band bounce while using the till. */
+    overscroll-behavior: none;
+  }
+  html,
+  body {
+    /* Nothing may push the page sideways on phones. clip (not hidden) keeps sticky headers working. */
+    overflow-x: clip;
+    max-width: 100%;
   }
   body {
     @apply bg-bg font-sans text-ink antialiased;
+    /* No double-tap zoom: fast repeated taps on + / keypad stay taps. */
+    touch-action: manipulation;
+  }
+  /* iOS zooms into inputs smaller than 16px on focus; keep them at 16px on phones. */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
   a {
     @apply text-brand-600 hover:text-[#0A5039];
