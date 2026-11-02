@@ -51,6 +51,15 @@ export function StockPage() {
   const low = useMemo(() => lowStockProducts(allProducts), [allProducts])
   const value = useMemo(() => stockValue(allProducts), [allProducts])
 
+  // "Krijo porosi" on the dashboard links here with ?add=low.
+  const { addProducts } = entryForm
+  useEffect(() => {
+    if (params.get('add') !== 'low' || !products.data) return
+    addProducts(low.map((p) => ({ product: p, qty: suggestedQty(p) })))
+    setNotice('U shtuan në hyrje produktet nën minimum (sasi e sugjeruar: deri në 2× minimumin).')
+    setParams({}, { replace: true })
+  }, [params, products.data, low, addProducts, setParams])
+
   async function onExport() {
     setExporting(true)
     try {

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { LoaderCircle, X } from 'lucide-react'
 import { Badge, Card, Pagination, Select, Table, TBody, TD, TH, THead, TR, type BadgeTone } from '@/components/ui'
 import { cn } from '@/lib/cn'
-import { formatDate } from '@/lib/date'
+import { formatDate, formatTime } from '@/lib/date'
 import { errorMessage } from '@/lib/errors'
 import { formatQty, UNIT_LABELS } from '@/lib/units'
 import type { MovementType, Product } from '@/types/database'
@@ -19,7 +19,6 @@ export const MOVEMENT_LABELS: Record<MovementType, { label: string; tone: BadgeT
 
 const PAGE_SIZE = 50
 
-const timeFmt = new Intl.DateTimeFormat('sq-AL', { hour: '2-digit', minute: '2-digit', hour12: false })
 
 export function MovementsTab({ products }: { products: Product[] }) {
   const [type, setType] = useState<MovementType | 'all'>('all')
@@ -98,7 +97,7 @@ export function MovementsTab({ products }: { products: Product[] }) {
                 return (
                   <TR key={m.id}>
                     <TD className="tabular-nums text-muted">
-                      {formatDate(d)} {timeFmt.format(d)}
+                      {formatDate(d)} {formatTime(d)}
                     </TD>
                     <TD className="font-semibold">{p?.name ?? `#${m.product_id}`}</TD>
                     <TD>

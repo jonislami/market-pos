@@ -6,6 +6,7 @@ import { beep } from '@/lib/beep'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import { formatMoney, formatReceiptNo } from '@/lib/money'
+import { formatTime } from '@/lib/date'
 import { normalizeText } from '@/lib/text'
 import { allowsDecimals } from '@/lib/units'
 import type { PosProduct, Sale } from '@/types/database'
@@ -489,7 +490,6 @@ function HeldCartsDialog({
   onRestore: (id: string) => void
   onDiscard: (id: string) => void
 }) {
-  const time = new Intl.DateTimeFormat('sq-AL', { hour: '2-digit', minute: '2-digit' })
   return (
     <Dialog open={open} onClose={onClose} title="Faturat në pritje" size="sm">
       {held.length === 0 ? (
@@ -503,7 +503,7 @@ function HeldCartsDialog({
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="font-semibold tabular-nums">{formatMoney(t.total)}</span>
                   <span className="truncate text-xs text-muted">
-                    {time.format(new Date(h.savedAt))} · {t.items.length} produkte
+                    {formatTime(h.savedAt)} · {t.items.length} produkte
                     {t.hasUnavailable && ' · '}
                     {t.hasUnavailable && <Badge tone="low">ka produkte të hequra</Badge>}
                   </span>

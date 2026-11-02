@@ -14,6 +14,9 @@ export function errorMessage(err: unknown): string {
     return 'Ky regjistrim ekziston tashmë.'
   }
   if (e.code === '42501' || /row-level security/i.test(text)) return 'Nuk ke leje për këtë veprim.'
+  if (e.code === 'PGRST202' || e.code === '42883') {
+    return 'Mungon një funksion në databazë. Ekzekuto migrimet te supabase/migrations në Supabase SQL Editor.'
+  }
   if (e.code === '23503') return 'Regjistrimi përdoret diku tjetër dhe nuk mund të ndryshohet.'
   if (/fetch|network/i.test(text)) return 'Nuk u lidh me serverin. Kontrollo internetin.'
   // Exceptions raised in our SQL functions are already in Albanian.
