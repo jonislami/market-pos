@@ -9,7 +9,7 @@ import { bluetoothSupported, connectPrinter, disconnectPrinter, usePrinterState 
 import { CHARSET_OPTIONS, updateDeviceSettings, useDeviceSettings, type Charset } from '@/lib/printer/deviceSettings'
 import { printReceipt } from '@/lib/printer/print'
 import type { StoreSettings } from '@/types/database'
-import { useRegisters, useSaveStoreSettings, useStoreSettings } from './api'
+import { useActiveRegister, useSaveStoreSettings, useStoreSettings } from './api'
 import { sampleReceipt } from './sampleReceipt'
 
 const CHUNK_OPTIONS = [20, 100, 180, 512].map((n) => ({ value: String(n), label: `${n} bytes` }))
@@ -64,12 +64,11 @@ export function PrinterSection() {
   const isManager = profile?.role === 'admin' || profile?.role === 'manager'
   const printer = usePrinterState()
   const device = useDeviceSettings()
-  const registers = useRegisters()
   const { draft, set, dirty, submit, reset, saving, message } = useSettingsDraft()
   const [busy, setBusy] = useState(false)
   const [testError, setTestError] = useState<string | null>(null)
 
-  const registerName = registers.data?.find((r) => r.id === device.registerId)?.name ?? `Arka ${device.registerId}`
+  const registerName = useActiveRegister().name
 
   async function connect(showAll = false) {
     setTestError(null)

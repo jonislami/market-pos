@@ -6,13 +6,13 @@ import { roleLabels } from '@/app/nav'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { cn } from '@/lib/cn'
 import { usePrinterState } from '@/lib/printer/bluetooth'
-import { useDeviceSettings } from '@/lib/printer/deviceSettings'
 import type { UserRole } from '@/types/database'
-import { useRegisters } from './api'
+import { useActiveRegister, useIsPlatformAdmin } from './api'
 import { PrinterSection } from './PrinterSection'
 import { BackupSection, RegistersSection, StoreSection, UsersSection, VatSection } from './Sections'
+import { StoresSection } from './StoresSection'
 
-type SectionId = 'store' | 'printer' | 'users' | 'registers' | 'vat' | 'backup'
+type SectionId = 'store' | 'printer' | 'users' | 'registers' | 'vat' | 'backup' | 'stores'
 
 const managers: UserRole[] = ['admin', 'manager']
 const everyone: UserRole[] = ['admin', 'manager', 'cashier']
@@ -25,6 +25,9 @@ const SECTIONS: { id: SectionId; label: string; roles: UserRole[] }[] = [
   { id: 'vat', label: 'TVSH & Taksat', roles: managers },
   { id: 'backup', label: 'Kopje rezervë (Backup)', roles: managers },
 ]
+
+/** Only for platform admins (whoever runs this installation for several markets). */
+const STORES_SECTION = { id: 'stores' as const, label: 'Dyqanet (platforma)', roles: ['admin'] as UserRole[] }
 
 function initials(name: string): string {
   return name
@@ -49,6 +52,8 @@ function SectionBody({ id }: { id: SectionId }) {
       return <VatSection />
     case 'backup':
       return <BackupSection />
+    case 'stores':
+      return <StoresSection />
   }
 }
 
@@ -57,16 +62,15 @@ export function SettingsPage() {
   const role = profile?.role
   const [params, setParams] = useSearchParams()
   const printer = usePrinterState()
-  const device = useDeviceSettings()
-  const registers = useRegisters()
 
-  const sections = SECTIONS.filter((s) => role && s.roles.includes(role))
+  const isPlatformAdmin = useIsPlatformAdmin(role === 'admin').data === true
+  const sections = [...SECTIONS, ...(isPlatformAdmin ? [STORES_SECTION] : [])].filter((s) => role && s.roles.includes(role))
   const requested = params.get('s') as SectionId | null
   const selected = sections.find((s) => s.id === requested)
   // Desktop always shows a section (printer by default); phones show the menu until one is chosen.
   const desktopSection = selected?.id ?? 'printer'
   const open = (id: SectionId | null) => setParams(id ? { s: id } : {}, { replace: false })
-  const registerName = registers.data?.find((r) => r.id === device.registerId)?.name ?? `Arka ${device.registerId}`
+  const registerName = useActiveRegister().name
 
   return (
     <>

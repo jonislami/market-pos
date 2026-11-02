@@ -4,12 +4,12 @@ import { Badge, Button, Card, Dialog, Input, Select, Table, TBody, TD, TH, THead
 import { roleLabels } from '@/app/nav'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { errorMessage } from '@/lib/errors'
-import { updateDeviceSettings, useDeviceSettings } from '@/lib/printer/deviceSettings'
+import { updateDeviceSettings } from '@/lib/printer/deviceSettings'
 import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/date'
 import { VAT_CODES, VAT_RATES } from '@/lib/vat'
 import type { Profile, Register, UserRole } from '@/types/database'
-import { settingsKeys, useProfiles, useRegisters, useSaveRegister, useSetPin, useUpdateProfile, type ProfileRow } from './api'
+import { settingsKeys, useActiveRegister, useProfiles, useRegisters, useSaveRegister, useSetPin, useUpdateProfile, type ProfileRow } from './api'
 import { StoreInfoFields, useSettingsDraft } from './PrinterSection'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -280,7 +280,7 @@ export function RegistersSection() {
   const { profile } = useAuth()
   const isManager = profile?.role === 'admin' || profile?.role === 'manager'
   const registers = useRegisters()
-  const device = useDeviceSettings()
+  const activeRegister = useActiveRegister()
   const [editing, setEditing] = useState<Register | 'new' | null>(null)
   const active = (registers.data ?? []).filter((r) => r.active)
 
@@ -291,7 +291,7 @@ export function RegistersSection() {
         <p className="text-[13px] text-muted">Shitjet nga kjo pajisje regjistrohen në këtë arkë dhe ajo shfaqet në faturë.</p>
         <Select
           aria-label="Arka e kësaj pajisjeje"
-          value={String(device.registerId)}
+          value={String(activeRegister.id)}
           onChange={(e) => updateDeviceSettings({ registerId: Number(e.target.value) })}
           options={active.map((r) => ({ value: String(r.id), label: r.name }))}
           wrapperClassName="max-w-sm"

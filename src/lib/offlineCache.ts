@@ -30,15 +30,15 @@ export function writeCache<T>(key: string, data: T) {
 
 /** Query options that seed a query from the cache and keep the cache updated. */
 export function cached<T>(key: string, fetcher: () => Promise<T>) {
-  const entry = readCache<T>(key)
+  // Functions, so the (possibly large) cache is parsed only when the query is created, not on every render.
   return {
     queryFn: async () => {
       const data = await fetcher()
       writeCache(key, data)
       return data
     },
-    initialData: entry?.data,
-    initialDataUpdatedAt: entry?.updatedAt,
+    initialData: () => readCache<T>(key)?.data,
+    initialDataUpdatedAt: () => readCache<T>(key)?.updatedAt,
   }
 }
 

@@ -11,13 +11,12 @@ import { normalizeText } from '@/lib/text'
 import { allowsDecimals } from '@/lib/units'
 import type { PosProduct, Sale } from '@/types/database'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { defaultSettings, useStoreSettings } from '@/features/settings/api'
-import { useDeviceSettings } from '@/lib/printer/deviceSettings'
+import { defaultSettings, useActiveRegister, useStoreSettings } from '@/features/settings/api'
 import { bluetoothSupported } from '@/lib/printer/bluetooth'
 import { preferredPrintMethod, printReceipt } from '@/lib/printer/print'
 import type { ReceiptData, ReceiptItem } from '@/lib/printer/receipt'
 import { supabase } from '@/lib/supabase'
-import { useCreateSale, useNextSaleNumber, usePosProducts, useRegisterName } from './api'
+import { useCreateSale, useNextSaleNumber, usePosProducts } from './api'
 import { CameraScanner } from './CameraScanner'
 import { computeTotals, useCart, type HeldCart } from './cart'
 import { CartLines, CartTotalsBox } from './CartLines'
@@ -40,8 +39,7 @@ export function PosPage() {
   const productsQuery = usePosProducts()
   const categoriesQuery = useCategories()
   const nextNumber = useNextSaleNumber()
-  const device = useDeviceSettings()
-  const registerName = useRegisterName(device.registerId)
+  const register = useActiveRegister()
   const settings = useStoreSettings()
   const { profile } = useAuth()
   const createSale = useCreateSale()
@@ -161,6 +159,8 @@ export function PosPage() {
         items: totals.items.map((i) => ({ product_id: i.productId, quantity: i.qty })),
         payment: payment.method,
         paid: payment.method === 'cash' ? (cash.paid ?? expected) : null,
+        registerId: register.id,
+        cashierId: profile?.id ?? null,
         total: expected,
       },
       {
@@ -237,7 +237,7 @@ export function PosPage() {
       number: s.number,
       numberLabel: offlineLabel,
       date: new Date(s.created_at),
-      registerName: registerName.data ?? `Arka ${device.registerId}`,
+      registerName: register.name,
       cashierName: profile?.full_name ?? '',
       items,
       total: s.total,
@@ -333,7 +333,7 @@ export function PosPage() {
           <div className="flex flex-col">
             <h1 className="text-2xl font-bold tracking-[-0.02em]">Fatura {receiptNo}</h1>
             <span className="text-sm text-muted">
-              {registerName.data ?? 'Arka'} · {totals.articleCount} artikuj
+              {register.name} · {totals.articleCount} artikuj
             </span>
           </div>
           <div className="flex gap-2">

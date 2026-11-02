@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getDeviceStoreId } from '@/lib/deviceStore'
 import { cached } from '@/lib/offlineCache'
+import { useDeviceSettings } from '@/lib/printer/deviceSettings'
 import { supabase } from '@/lib/supabase'
-import type { Profile, Register, StoreSettings, UserRole } from '@/types/database'
+import type { Profile, Register, Store, StoreSettings, UserRole } from '@/types/database'
 
 export const settingsKeys = {
   store: ['store-settings'] as const,
   registers: ['registers'] as const,
   profiles: ['profiles', 'all'] as const,
+  platformAdmin: ['platform-admin'] as const,
+  stores: ['stores'] as const,
 }
 
 export const DEFAULT_STORE_NAME = '[Emri i Marketit]'
@@ -27,7 +31,10 @@ export const defaultSettings: StoreSettings = {
   open_cash_drawer: true,
 }
 
-/** Store settings (one row). `select('*')` so it works before and after migration 04. */
+/**
+ * Settings of the user's store. RLS returns only that store's row (one row per store since migration 06,
+ * the single id = 1 row before). `select('*')` so it works before and after migration 04.
+ */
 export function useStoreSettings(enabled = true) {
   return useQuery({
     queryKey: settingsKeys.store,
@@ -35,7 +42,7 @@ export function useStoreSettings(enabled = true) {
     staleTime: 5 * 60_000,
     // Cached on the device: receipts print offline with the store's details.
     ...cached('store-settings', async (): Promise<StoreSettings> => {
-      const { data, error } = await supabase.from('store_settings').select('*').eq('id', 1).maybeSingle()
+      const { data, error } = await supabase.from('store_settings').select('*').limit(1).maybeSingle()
       if (error) throw error
       const s = { ...defaultSettings, ...(data ?? {}) } as StoreSettings
       s.paper_width = Number(s.paper_width) === 58 ? 58 : 80
@@ -68,7 +75,9 @@ export function useSaveStoreSettings() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (patch: Partial<StoreSettings>) => {
-      const { error } = await supabase.from('store_settings').update(patch).eq('id', 1)
+      const storeId = getDeviceStoreId()
+      const query = supabase.from('store_settings').update(patch)
+      const { error } = storeId ? await query.eq('store_id', storeId) : await query.eq('id', 1)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.store }),
@@ -76,6 +85,18 @@ export function useSaveStoreSettings() {
 }
 
 // ---------- Registers ----------
+
+/**
+ * The register this device sells on: the one chosen in Cilësimet → Arkat if it belongs to the store,
+ * otherwise the store's first active register (e.g. right after moving to another store).
+ */
+export function useActiveRegister(): { id: number; name: string } {
+  const device = useDeviceSettings()
+  const registers = useRegisters()
+  const list = registers.data ?? []
+  const chosen = list.find((r) => r.id === device.registerId && r.active) ?? list.find((r) => r.active)
+  return chosen ? { id: chosen.id, name: chosen.name } : { id: device.registerId, name: `Arka ${device.registerId}` }
+}
 
 export function useRegisters() {
   return useQuery({
@@ -149,5 +170,54 @@ export function useUpdateProfile() {
       void qc.invalidateQueries({ queryKey: settingsKeys.profiles })
       void qc.invalidateQueries({ queryKey: ['profiles', 'names'] })
     },
+  })
+}
+
+// ---------- Platform: stores (multi-tenant, migration 06) ----------
+
+/** True for platform admins, who create and manage stores. False before migration 06. */
+export function useIsPlatformAdmin(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.platformAdmin,
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase.rpc('is_platform_admin')
+      return !error && data === true
+    },
+  })
+}
+
+export function useStores(enabled = true) {
+  return useQuery({
+    queryKey: settingsKeys.stores,
+    enabled,
+    queryFn: async (): Promise<Store[]> => {
+      const { data, error } = await supabase.rpc('list_stores')
+      if (error) throw error
+      return (data as Store[]).map((s) => ({ ...s, users: Number(s.users), sales: Number(s.sales) }))
+    },
+  })
+}
+
+export function useCreateStore() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ name, ownerId, ownerName }: { name: string; ownerId: string; ownerName: string }) => {
+      const { error } = await supabase.rpc('create_store', { p_name: name, p_owner_id: ownerId, p_owner_name: ownerName })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.stores }),
+  })
+}
+
+export function useSetStoreActive() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase.rpc('set_store_active', { p_store: id, p_active: active })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.stores }),
   })
 }

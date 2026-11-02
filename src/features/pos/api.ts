@@ -1,15 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { PaymentMethod, PosProduct } from '@/types/database'
+import type { PosProduct } from '@/types/database'
 import { productKeys } from '@/features/products/api'
 import { cached } from '@/lib/offlineCache'
-import { getDeviceSettings } from '@/lib/printer/deviceSettings'
-import { submitSale, type SaleResult } from './offlineSales'
+import { submitSale, type SaleRequest, type SaleResult } from './offlineSales'
 
 export const posKeys = {
   products: ['pos-products'] as const,
   nextNumber: ['sales', 'next-number'] as const,
-  register: (id: number) => ['registers', id] as const,
 }
 
 const PAGE = 1000
@@ -60,22 +58,7 @@ export function useNextSaleNumber() {
   })
 }
 
-export function useRegisterName(id: number) {
-  return useQuery({
-    queryKey: posKeys.register(id),
-    ...cached(`register-name-${id}`, async () => {
-      const { data, error } = await supabase.from('registers').select('name').eq('id', id).maybeSingle()
-      if (error) throw error
-      return (data?.name as string | undefined) ?? `Arka ${id}`
-    }),
-    staleTime: Infinity,
-  })
-}
-
-export interface CreateSaleArgs {
-  items: { product_id: number; quantity: number }[]
-  payment: PaymentMethod
-  paid: number | null
+export interface CreateSaleArgs extends SaleRequest {
   /** Total shown at the till; kept for sales queued offline. */
   total: number
 }
@@ -85,9 +68,7 @@ export function useCreateSale() {
   return useMutation({
     // Must run while offline too: submitSale queues the sale instead of failing.
     networkMode: 'always',
-    mutationFn: ({ items, payment, paid, total }: CreateSaleArgs): Promise<SaleResult> =>
-      // Each device sells on the register chosen in Cilësimet → Arkat.
-      submitSale({ items, payment, paid, registerId: getDeviceSettings().registerId }, total),
+    mutationFn: ({ total, ...req }: CreateSaleArgs): Promise<SaleResult> => submitSale(req, total),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: posKeys.products })
       void qc.invalidateQueries({ queryKey: posKeys.nextNumber })

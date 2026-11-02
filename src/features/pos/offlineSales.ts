@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
+import { getDeviceStoreId } from '@/lib/deviceStore'
 import { isNetworkError } from '@/lib/offlineCache'
 import { supabase } from '@/lib/supabase'
 import type { PaymentMethod, Sale } from '@/types/database'
@@ -14,9 +15,13 @@ export interface SaleRequest {
   payment: PaymentMethod
   paid: number | null
   registerId: number
+  /** Who made the sale; kept so an offline sale synced later is not credited to another cashier. */
+  cashierId: string | null
 }
 
 export interface PendingSale extends SaleRequest {
+  /** Store of the device when the sale was made; only synced while signed in to that store. */
+  storeId: string | null
   clientId: string
   createdAt: string
   /** Temporary receipt number, e.g. "OFF-1-0003". */
@@ -79,17 +84,24 @@ function toSale(data: unknown): Sale {
   return { ...s, total: Number(s.total), total_vat: Number(s.total_vat), paid: Number(s.paid), change: Number(s.change) }
 }
 
-/** create_sale with idempotency key; falls back to the old signature if migration 05 is missing. */
+/**
+ * create_sale with idempotency key and original cashier. Falls back to older signatures while
+ * migrations 06 (p_cashier_id) or 05 (p_client_id, p_created_at) have not been run.
+ */
 async function callCreateSale(req: SaleRequest, clientId: string, createdAt: string | null): Promise<Sale> {
   const base = { p_items: req.items, p_payment: req.payment, p_paid: req.paid, p_register: req.registerId }
-  const { data, error } = await supabase.rpc('create_sale', { ...base, p_client_id: clientId, p_created_at: createdAt })
-  if (error?.code === 'PGRST202') {
-    const retry = await supabase.rpc('create_sale', base)
-    if (retry.error) throw retry.error
-    return toSale(retry.data)
+  const attempts = [
+    { ...base, p_client_id: clientId, p_created_at: createdAt, p_cashier_id: req.cashierId },
+    { ...base, p_client_id: clientId, p_created_at: createdAt },
+    base,
+  ]
+  for (const args of attempts) {
+    const { data, error } = await supabase.rpc('create_sale', args)
+    if (error?.code === 'PGRST202') continue // this signature doesn't exist (yet)
+    if (error) throw error
+    return toSale(data)
   }
-  if (error) throw error
-  return toSale(data)
+  throw new Error('Funksioni create_sale mungon në databazë.')
 }
 
 export type SaleResult = { kind: 'online'; sale: Sale } | { kind: 'offline'; pending: PendingSale }
@@ -98,7 +110,14 @@ export type SaleResult = { kind: 'online'; sale: Sale } | { kind: 'offline'; pen
 export async function submitSale(req: SaleRequest, total: number): Promise<SaleResult> {
   const clientId = crypto.randomUUID()
   const enqueue = (): SaleResult => {
-    const pending: PendingSale = { ...req, clientId, createdAt: new Date().toISOString(), label: nextLabel(req.registerId), total }
+    const pending: PendingSale = {
+      ...req,
+      storeId: getDeviceStoreId(),
+      clientId,
+      createdAt: new Date().toISOString(),
+      label: nextLabel(req.registerId),
+      total,
+    }
     queue = [...queue, pending]
     emit()
     return { kind: 'offline', pending }
@@ -114,15 +133,24 @@ export async function submitSale(req: SaleRequest, total: number): Promise<SaleR
 
 let queryClient: QueryClient | null = null
 
+/** Queued sales that may be sent with the current sign-in (same store as when they were made). */
+function sendable(p: PendingSale): boolean {
+  const store = getDeviceStoreId()
+  return !p.error && (!p.storeId || !store || p.storeId === store)
+}
+
 /** Sends queued sales oldest first; stops at the first network failure. */
 export async function syncOfflineSales(): Promise<void> {
-  if (syncing || !navigator.onLine || !queue.some((p) => !p.error)) return
+  if (syncing || !navigator.onLine || !queue.some(sendable)) return
+  // Without a session the server would reject every sale as "no access"; wait for the next sign-in.
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) return
   syncing = true
   emit()
   let sent = 0
   try {
     for (const p of [...queue]) {
-      if (p.error) continue
+      if (!sendable(p)) continue
       try {
         await callCreateSale(p, p.clientId, p.createdAt)
         queue = queue.filter((q) => q.clientId !== p.clientId)

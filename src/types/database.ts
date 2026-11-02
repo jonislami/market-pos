@@ -9,6 +9,17 @@ export interface Profile {
   role: UserRole
   active: boolean
   created_at: string
+  /** The user's store (migration 06); undefined before multi-tenant was enabled. */
+  store_id?: string
+}
+
+export interface Store {
+  id: string
+  name: string
+  active: boolean
+  created_at: string
+  users: number
+  sales: number
 }
 
 export type Unit = 'cope' | 'kg' | 'pako' | 'liter'
