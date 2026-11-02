@@ -193,8 +193,20 @@ export function PaymentDialog({ open, onClose, total, state, onState, onPay, pen
   )
 }
 
+export type PrintStatus = { state: 'idle' | 'printing' | 'done' } | { state: 'error'; message: string }
+
 /** Confirmation after create_sale succeeded; Enter starts the next sale. */
-export function SaleDoneDialog({ sale, onClose }: { sale: Sale | null; onClose: () => void }) {
+export function SaleDoneDialog({
+  sale,
+  onClose,
+  onPrint,
+  printStatus,
+}: {
+  sale: Sale | null
+  onClose: () => void
+  onPrint?: () => void
+  printStatus: PrintStatus
+}) {
   return (
     <Dialog
       open={sale !== null}
@@ -202,9 +214,16 @@ export function SaleDoneDialog({ sale, onClose }: { sale: Sale | null; onClose: 
       title="Shitja u krye"
       size="sm"
       footer={
-        <Button size="lg" block autoFocus onClick={onClose}>
-          Shitje e re
-        </Button>
+        <>
+          {onPrint && (
+            <Button variant="secondary" size="lg" className="flex-1" loading={printStatus.state === 'printing'} onClick={onPrint}>
+              {printStatus.state === 'done' ? 'Printo kopje' : 'Printo'}
+            </Button>
+          )}
+          <Button size="lg" className="flex-[2]" autoFocus onClick={onClose}>
+            Shitje e re
+          </Button>
+        </>
       }
     >
       {sale && (
@@ -222,7 +241,13 @@ export function SaleDoneDialog({ sale, onClose }: { sale: Sale | null; onClose: 
               <span className="block text-xs text-warn-700">Paguar {formatMoney(sale.paid ?? sale.total)}</span>
             </div>
           )}
-          <p className="text-xs text-muted">Printimi i faturës shtohet në Fazën 6.</p>
+          {printStatus.state === 'printing' && <p className="text-sm text-muted">Duke printuar faturën…</p>}
+          {printStatus.state === 'done' && <p className="text-sm text-brand-600">Fatura u printua.</p>}
+          {printStatus.state === 'error' && (
+            <p className="w-full rounded-[10px] bg-warn-100 px-3 py-2 text-sm text-warn-700">
+              Fatura nuk u printua: {printStatus.message}
+            </p>
+          )}
         </div>
       )}
     </Dialog>

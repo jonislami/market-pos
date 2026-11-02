@@ -4,7 +4,11 @@ import { RouterProvider } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/features/auth/AuthProvider'
 import { router } from '@/app/router'
+import { autoReconnect } from '@/lib/printer/bluetooth'
+import { PrintArea } from '@/lib/printer/print'
 import './index.css'
+
+autoReconnect()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <RouterProvider router={router} />
       </AuthProvider>
+      <PrintArea />
     </QueryClientProvider>
   </StrictMode>,
 )

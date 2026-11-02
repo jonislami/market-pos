@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Browser printing of receipts: only the receipt is printed. */
+#print-area {
+  display: none;
+}
+@media print {
+  body > *:not(#print-area) {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  #print-area {
+    display: block;
+  }
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;

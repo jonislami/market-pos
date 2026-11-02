@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { LogoMark, STORE_NAME } from '@/components/Logo'
+import { LogoMark } from '@/components/Logo'
+import { useStoreName } from '@/features/settings/api'
 import { cn } from '@/lib/cn'
 import { useLowStockCount } from '@/features/stock/useLowStockCount'
 import { canAccess, mainNav, roleLabels, settingsNav, type NavItem } from './nav'
@@ -43,6 +44,7 @@ export function Sidebar() {
   const { profile, signOut } = useAuth()
   const role = profile?.role
   const name = profile?.full_name ?? ''
+  const storeName = useStoreName()
   const lowStock = useLowStockCount(role === 'admin' || role === 'manager')
 
   return (
@@ -53,7 +55,7 @@ export function Sidebar() {
       <div className="flex items-center gap-2.5 px-2 pb-6">
         <LogoMark />
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-base font-bold text-white">{STORE_NAME}</span>
+          <span className="truncate text-base font-bold text-white">{storeName}</span>
           <span className="text-xs text-[#8FA79A]">Dyqani qendror</span>
         </div>
       </div>

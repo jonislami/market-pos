@@ -45,6 +45,28 @@ export type PosProduct = Pick<
   'id' | 'barcode' | 'name' | 'category_id' | 'unit' | 'sale_price' | 'vat_rate' | 'stock' | 'min_stock'
 >
 
+export interface StoreSettings {
+  store_name: string
+  nui: string | null
+  address: string | null
+  phone: string | null
+  receipt_footer: string | null
+  show_logo: boolean
+  show_vat_breakdown: boolean
+  /** Added by migration 04; undefined until it has been run. */
+  show_barcode?: boolean
+  receipt_copies?: number
+  paper_width: 58 | 80
+  auto_print: boolean
+  open_cash_drawer: boolean
+}
+
+export interface Register {
+  id: number
+  name: string
+  active: boolean
+}
+
 export interface Supplier {
   id: number
   name: string

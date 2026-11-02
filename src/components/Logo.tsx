@@ -17,5 +17,3 @@ export function LogoMark({ size = 'sm', className }: { size?: keyof typeof sizes
   )
 }
 
-// Placeholder until store_settings is wired up in Phase 6.
-export const STORE_NAME = '[Emri i Marketit]'

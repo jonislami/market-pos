@@ -14,6 +14,9 @@ export function errorMessage(err: unknown): string {
     return 'Ky regjistrim ekziston tashmë.'
   }
   if (e.code === '42501' || /row-level security/i.test(text)) return 'Nuk ke leje për këtë veprim.'
+  if (e.code === 'PGRST204' || e.code === '42703') {
+    return 'Mungon një kolonë në databazë. Ekzekuto migrimet e reja te supabase/migrations në Supabase SQL Editor.'
+  }
   if (e.code === 'PGRST202' || e.code === '42883') {
     return 'Mungon një funksion në databazë. Ekzekuto migrimet te supabase/migrations në Supabase SQL Editor.'
   }

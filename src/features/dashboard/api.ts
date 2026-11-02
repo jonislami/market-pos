@@ -127,6 +127,7 @@ export interface SaleRow {
   change: number | null
   itemCount: number
   cashierId: string | null
+  registerId: number | null
 }
 
 /** Local day boundaries as ISO timestamps for filtering `created_at`. */
@@ -145,7 +146,7 @@ export function useSalesList(from: string, to: string, page: number, pageSize: n
       const { start, end } = dayRange(from, to)
       const { data, error, count } = await supabase
         .from('sales')
-        .select('id, number, created_at, payment_method, total, total_vat, paid, change, cashier_id, sale_items(count)', { count: 'exact' })
+        .select('id, number, created_at, payment_method, total, total_vat, paid, change, cashier_id, register_id, sale_items(count)', { count: 'exact' })
         .gte('created_at', start)
         .lt('created_at', end)
         .order('created_at', { ascending: false })
@@ -163,6 +164,7 @@ export function useSalesList(from: string, to: string, page: number, pageSize: n
           paid: r.paid === null ? null : n(r.paid),
           change: r.change === null ? null : n(r.change),
           cashierId: (r.cashier_id as string | null) ?? null,
+          registerId: (r.register_id as number | null) ?? null,
           itemCount: (r.sale_items as { count: number }[])[0]?.count ?? 0,
         })),
       }

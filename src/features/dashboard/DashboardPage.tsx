@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell, ChevronRight, LoaderCircle, Plus, ShoppingCart } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
-import { STORE_NAME } from '@/components/Logo'
+import { useStoreName } from '@/features/settings/api'
 import { Badge, buttonClasses, Card, Table, TBody, TD, TH, THead, TR, Tabs } from '@/components/ui'
 import { useProducts } from '@/features/products/api'
 import { lowStockProducts } from '@/features/stock/SideCards'
@@ -35,6 +35,7 @@ export function DashboardPage() {
   const today = todayISO()
   const weekAgo = addDays(today, -7)
   const [period, setPeriod] = useState<ChartPeriod>('week')
+  const storeName = useStoreName()
 
   // Today plus the same weekday last week, for the trend.
   const kpi = useDailyReport(weekAgo, today)
@@ -66,7 +67,7 @@ export function DashboardPage() {
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-[#B5C7BD]">{formatLongDate().replace(/ \d{4}$/, '')}</span>
-            <span className="text-xl font-bold">{STORE_NAME}</span>
+            <span className="text-xl font-bold">{storeName}</span>
           </div>
           <Link to="/stoku" aria-label={`${low.length} produkte me stok të ulët`} className="relative flex size-12 items-center justify-center rounded-xl bg-[#1B3A2C] text-white hover:text-white">
             <Bell className="size-5" aria-hidden />

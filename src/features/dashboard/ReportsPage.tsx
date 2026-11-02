@@ -11,6 +11,9 @@ import { formatPercent } from '@/lib/text'
 import { formatQty, UNIT_LABELS } from '@/lib/units'
 import { useCashierReport, useDailyReport, useSaleItems, useSalesList, useTopProducts, useVatReport, type DailyRow, type SaleRow } from './api'
 import { exportSalesReport } from './exportReport'
+import { defaultSettings, useRegisters, useStoreSettings } from '@/features/settings/api'
+import { printReceipt } from '@/lib/printer/print'
+import type { VatRate } from '@/types/database'
 import { BarChart, KpiCard, type Bar } from './widgets'
 
 type Preset = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'year' | 'custom'
@@ -324,8 +327,56 @@ export function ReportsPage() {
 
 function SaleDialog({ sale, onClose, cashierName }: { sale: SaleRow | null; onClose: () => void; cashierName?: string }) {
   const items = useSaleItems(sale?.id ?? null)
+  const settings = useStoreSettings()
+  const registers = useRegisters()
+  const [printing, setPrinting] = useState(false)
+  const [printError, setPrintError] = useState<string | null>(null)
+
+  async function reprint() {
+    if (!sale || !items.data) return
+    setPrinting(true)
+    setPrintError(null)
+    try {
+      await printReceipt(
+        {
+          store: settings.data ?? defaultSettings,
+          number: sale.number,
+          date: new Date(sale.createdAt),
+          registerName: registers.data?.find((r) => r.id === sale.registerId)?.name ?? `Arka ${sale.registerId ?? ''}`,
+          cashierName: cashierName ?? '',
+          items: items.data.map((i) => ({
+            name: i.name,
+            qty: i.quantity,
+            unitPrice: i.unitPrice,
+            total: i.lineTotal,
+            vatRate: i.vatRate as VatRate,
+          })),
+          total: sale.total,
+          payment: sale.payment,
+          paid: sale.paid,
+          change: sale.change,
+          reprint: true,
+        },
+        { copies: 1, openDrawer: false },
+      )
+    } catch (err) {
+      setPrintError(errorMessage(err))
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   return (
-    <Dialog open={sale !== null} onClose={onClose} title={sale ? `Fatura ${formatReceiptNo(sale.number)}` : ''}>
+    <Dialog
+      open={sale !== null}
+      onClose={onClose}
+      title={sale ? `Fatura ${formatReceiptNo(sale.number)}` : ''}
+      footer={
+        <Button variant="secondary" block loading={printing} disabled={!items.data} onClick={() => void reprint()}>
+          Riprinto faturën
+        </Button>
+      }
+    >
       {sale && (
         <div className="flex flex-col gap-4 text-sm">
           <p className="text-muted">
@@ -370,7 +421,7 @@ function SaleDialog({ sale, onClose, cashierName }: { sale: SaleRow | null; onCl
               </>
             )}
           </div>
-          <p className="text-xs text-muted">Riprintimi i faturës shtohet në Fazën 6.</p>
+          {printError && <p className="rounded-[10px] bg-warn-100 px-3 py-2 text-warn-700">{printError}</p>}
         </div>
       )}
     </Dialog>

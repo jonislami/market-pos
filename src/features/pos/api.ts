@@ -2,15 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { PaymentMethod, PosProduct, Sale } from '@/types/database'
 import { productKeys } from '@/features/products/api'
+import { getDeviceSettings } from '@/lib/printer/deviceSettings'
 
 export const posKeys = {
   products: ['pos-products'] as const,
   nextNumber: ['sales', 'next-number'] as const,
   register: (id: number) => ['registers', id] as const,
 }
-
-/** Until Phase 6 adds register selection, every device sells on register 1. */
-export const REGISTER_ID = 1
 
 const PAGE = 1000
 
@@ -85,7 +83,8 @@ export function useCreateSale() {
         p_items: items,
         p_payment: payment,
         p_paid: paid,
-        p_register: REGISTER_ID,
+        // Each device sells on the register chosen in Cilësimet → Arkat.
+        p_register: getDeviceSettings().registerId,
       })
       if (error) throw error
       const s = data as Sale

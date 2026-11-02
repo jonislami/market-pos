@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Check, Delete, Lock } from 'lucide-react'
 import { Button, Input, Tabs, Toggle } from '@/components/ui'
-import { LogoMark, STORE_NAME } from '@/components/Logo'
+import { LogoMark } from '@/components/Logo'
+import { cachedStoreName } from '@/features/settings/api'
 import { homePathFor } from '@/app/nav'
 import { FullScreenLoader } from '@/app/AuthGuard'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -181,7 +182,7 @@ export function LoginPage() {
       >
         <div className="flex items-center gap-3">
           <LogoMark size="md" />
-          <span className="text-xl font-bold">{STORE_NAME}</span>
+          <span className="text-xl font-bold">{cachedStoreName()}</span>
         </div>
         <div className="flex max-w-[460px] flex-col gap-4">
           <h1 className="text-[44px] font-bold leading-[1.1] tracking-[-0.03em]">Shitja, stoku dhe raportet në një vend.</h1>
@@ -204,7 +205,7 @@ export function LoginPage() {
         <LogoMark size="lg" />
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[28px] font-bold tracking-[-0.02em]">Mirë se erdhe</h1>
-          <span className="text-[15px] text-[#B5C7BD]">Hyr në {STORE_NAME}</span>
+          <span className="text-[15px] text-[#B5C7BD]">Hyr në {cachedStoreName()}</span>
         </div>
       </header>
 

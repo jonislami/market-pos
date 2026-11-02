@@ -10,11 +10,18 @@ import { formatTime } from '@/lib/date'
 import { normalizeText } from '@/lib/text'
 import { allowsDecimals } from '@/lib/units'
 import type { PosProduct, Sale } from '@/types/database'
-import { REGISTER_ID, useCreateSale, useNextSaleNumber, usePosProducts, useRegisterName } from './api'
+import { useAuth } from '@/features/auth/AuthProvider'
+import { defaultSettings, useStoreSettings } from '@/features/settings/api'
+import { useDeviceSettings } from '@/lib/printer/deviceSettings'
+import { bluetoothSupported } from '@/lib/printer/bluetooth'
+import { preferredPrintMethod, printReceipt } from '@/lib/printer/print'
+import type { ReceiptData, ReceiptItem } from '@/lib/printer/receipt'
+import { supabase } from '@/lib/supabase'
+import { useCreateSale, useNextSaleNumber, usePosProducts, useRegisterName } from './api'
 import { CameraScanner } from './CameraScanner'
 import { computeTotals, useCart, type HeldCart } from './cart'
 import { CartLines, CartTotalsBox } from './CartLines'
-import { cashInfo, Kbd, PaymentDialog, PaymentPanel, SaleDoneDialog, type PaymentState } from './Payment'
+import { cashInfo, Kbd, PaymentDialog, PaymentPanel, SaleDoneDialog, type PaymentState, type PrintStatus } from './Payment'
 import { ProductGrid, ProductResults } from './ProductGrid'
 
 const GRID_STEP = 60
@@ -33,9 +40,14 @@ export function PosPage() {
   const productsQuery = usePosProducts()
   const categoriesQuery = useCategories()
   const nextNumber = useNextSaleNumber()
-  const registerName = useRegisterName(REGISTER_ID)
+  const device = useDeviceSettings()
+  const registerName = useRegisterName(device.registerId)
+  const settings = useStoreSettings()
+  const { profile } = useAuth()
   const createSale = useCreateSale()
   const cart = useCart()
+  const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null)
+  const [printStatus, setPrintStatus] = useState<PrintStatus>({ state: 'idle' })
 
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<number | 'all'>('all')
@@ -134,6 +146,14 @@ export function PosPage() {
     }
     setPayError(null)
     const expected = totals.total
+    // Snapshot for the receipt: the cart is cleared as soon as the sale succeeds.
+    const lines: ReceiptItem[] = totals.items.map((i) => ({
+      name: i.product!.name,
+      qty: i.qty,
+      unitPrice: i.product!.sale_price,
+      total: i.lineTotal,
+      vatRate: i.product!.vat_rate,
+    }))
     createSale.mutate(
       {
         items: totals.items.map((i) => ({ product_id: i.productId, quantity: i.qty })),
@@ -149,11 +169,62 @@ export function PosPage() {
           if (Math.abs(s.total - expected) > 0.001) {
             setNotice({ kind: 'warn', text: `Çmimet ishin përditësuar: totali i faturës është ${formatMoney(s.total)}` })
           }
+          void prepareReceipt(s, lines, Math.abs(s.total - expected) > 0.001)
         },
         onError: (err) => setPayError(errorMessage(err)),
       },
     )
   }, [canPay, createSale, totals, payment, cart])
+
+  async function runPrint(receipt: ReceiptData) {
+    const store = settings.data ?? defaultSettings
+    setPrintStatus({ state: 'printing' })
+    try {
+      await printReceipt(receipt, {
+        copies: store.receipt_copies ?? 1,
+        openDrawer: store.open_cash_drawer && receipt.payment === 'cash',
+      })
+      setPrintStatus({ state: 'done' })
+    } catch (err) {
+      setPrintStatus({ state: 'error', message: errorMessage(err) })
+    }
+  }
+
+  /** Builds the receipt for a finished sale and prints it when auto-print is on. */
+  async function prepareReceipt(s: Sale, lines: ReceiptItem[], pricesChanged: boolean) {
+    let items = lines
+    if (pricesChanged) {
+      // The server used newer prices: take the lines it stored (managers can read them; cashiers keep the cart lines).
+      const { data } = await supabase.from('sale_items').select('name, quantity, unit_price, line_total, vat_rate').eq('sale_id', s.id).order('id')
+      if (data?.length) {
+        items = data.map((r) => ({
+          name: r.name as string,
+          qty: Number(r.quantity),
+          unitPrice: Number(r.unit_price),
+          total: Number(r.line_total),
+          vatRate: Number(r.vat_rate) as ReceiptItem['vatRate'],
+        }))
+      }
+    }
+    const receipt: ReceiptData = {
+      store: settings.data ?? defaultSettings,
+      number: s.number,
+      date: new Date(s.created_at),
+      registerName: registerName.data ?? `Arka ${device.registerId}`,
+      cashierName: profile?.full_name ?? '',
+      items,
+      total: s.total,
+      payment: s.payment_method,
+      paid: s.paid,
+      change: s.change,
+    }
+    setLastReceipt(receipt)
+    setPrintStatus({ state: 'idle' })
+    // Auto-print through a paired Bluetooth printer, or through the browser where Bluetooth doesn't exist (iPhone).
+    // A computer with no printer paired would otherwise pop the print dialog after every sale.
+    const canAutoPrint = preferredPrintMethod() === 'bluetooth' || !bluetoothSupported
+    if ((settings.data ?? defaultSettings).auto_print && canAutoPrint) await runPrint(receipt)
+  }
 
   function startPay() {
     if (!canPay) return
@@ -458,7 +529,12 @@ export function PosPage() {
         error={payError}
       />
 
-      <SaleDoneDialog sale={sale} onClose={closeSale} />
+      <SaleDoneDialog
+        sale={sale}
+        onClose={closeSale}
+        printStatus={printStatus}
+        onPrint={lastReceipt ? () => void runPrint({ ...lastReceipt, reprint: printStatus.state === 'done' }) : undefined}
+      />
 
       <HeldCartsDialog
         open={heldOpen}
