@@ -63,7 +63,7 @@ export function DashboardPage() {
   return (
     <>
       {/* ===== Phone header ===== */}
-      <section className="-mx-4 -mt-4 flex flex-col gap-4 bg-brand-900 px-5 pb-6 pt-[max(env(safe-area-inset-top),24px)] text-white md:hidden">
+      <section className="-mx-4 -mt-[calc(env(safe-area-inset-top)+16px)] flex flex-col gap-4 bg-brand-900 px-5 pb-6 pt-[calc(env(safe-area-inset-top)+20px)] text-white md:hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-[#B5C7BD]">{formatLongDate().replace(/ \d{4}$/, '')}</span>
