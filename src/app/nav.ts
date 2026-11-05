@@ -1,4 +1,5 @@
 import { ChartColumn, LayoutDashboard, Package, Settings, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
+import type { BusinessProfile } from '@/lib/business'
 import type { UserRole } from '@/types/database'
 
 export interface NavItem {
@@ -13,13 +14,17 @@ export interface NavItem {
 const managers: UserRole[] = ['admin', 'manager']
 const everyone: UserRole[] = ['admin', 'manager', 'cashier']
 
-export const mainNav: NavItem[] = [
-  { to: '/', label: 'Paneli', tabLabel: 'Paneli', icon: LayoutDashboard, roles: managers },
-  { to: '/arka', label: 'Arka / Shitja', tabLabel: 'Arka', icon: ShoppingCart, roles: everyone },
-  { to: '/produktet', label: 'Produktet', tabLabel: 'Produktet', icon: Package, roles: managers },
-  { to: '/stoku', label: 'Stoku & Hyrjet', tabLabel: 'Stoku', icon: Truck, roles: managers },
-  { to: '/raportet', label: 'Raportet', tabLabel: 'Raportet', icon: ChartColumn, roles: managers },
-]
+/** Main menu; catalogue and stock wording follows the store's business type. */
+export function mainNavFor(business: BusinessProfile): NavItem[] {
+  const { terms } = business
+  return [
+    { to: '/', label: 'Paneli', tabLabel: 'Paneli', icon: LayoutDashboard, roles: managers },
+    { to: '/arka', label: 'Arka / Shitja', tabLabel: 'Arka', icon: ShoppingCart, roles: everyone },
+    { to: '/produktet', label: terms.products, tabLabel: terms.products.split(' ')[0], icon: Package, roles: managers },
+    { to: '/stoku', label: terms.stock, tabLabel: 'Stoku', icon: Truck, roles: managers },
+    { to: '/raportet', label: 'Raportet', tabLabel: 'Raportet', icon: ChartColumn, roles: managers },
+  ]
+}
 
 export const settingsNav: NavItem = {
   to: '/cilesimet',

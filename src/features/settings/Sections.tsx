@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/date'
 import { VAT_CODES, VAT_RATES } from '@/lib/vat'
 import type { Profile, Register, UserRole } from '@/types/database'
-import { settingsKeys, useActiveRegister, useProfiles, useRegisters, useSaveRegister, useSetPin, useUpdateProfile, type ProfileRow } from './api'
+import { settingsKeys, useActiveRegister, useBusiness, useProfiles, useRegisters, useSaveRegister, useSetPin, useUpdateProfile, type ProfileRow } from './api'
 import { StoreInfoFields, useSettingsDraft } from './PrinterSection'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -17,12 +17,21 @@ import { useQueryClient } from '@tanstack/react-query'
 
 export function StoreSection() {
   const { draft, set, dirty, submit, reset, saving, message } = useSettingsDraft()
+  const business = useBusiness()
   if (!draft) return null
+  const BusinessIcon = business.icon
   return (
     <Card className="flex flex-col gap-4">
       <div>
         <h2 className="text-[17px] font-semibold">Të dhënat e dyqanit</h2>
         <p className="text-[13px] text-muted">Shfaqen në krye të faturës dhe në menu.</p>
+      </div>
+      <div className="flex items-center gap-3 rounded-[10px] border border-line bg-[#F7F9F7] px-3 py-2.5 text-sm">
+        <BusinessIcon className="size-5 text-brand-600" aria-hidden />
+        <span>
+          Lloji i biznesit: <strong>{business.label}</strong>
+        </span>
+        <span className="ml-auto text-xs text-muted">Ndryshohet nga administratori i platformës</span>
       </div>
       <StoreInfoFields draft={draft} set={set} />
       <div className="flex flex-wrap items-center justify-end gap-2.5">

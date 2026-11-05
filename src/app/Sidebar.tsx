@@ -2,10 +2,10 @@ import { NavLink } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { LogoMark } from '@/components/Logo'
-import { useStoreName } from '@/features/settings/api'
+import { useBusiness, useStoreName } from '@/features/settings/api'
 import { cn } from '@/lib/cn'
 import { useLowStockCount } from '@/features/stock/useLowStockCount'
-import { canAccess, mainNav, roleLabels, settingsNav, type NavItem } from './nav'
+import { canAccess, mainNavFor, roleLabels, settingsNav, type NavItem } from './nav'
 
 function initials(name: string): string {
   return name
@@ -45,6 +45,7 @@ export function Sidebar() {
   const role = profile?.role
   const name = profile?.full_name ?? ''
   const storeName = useStoreName()
+  const business = useBusiness()
   const lowStock = useLowStockCount(role === 'admin' || role === 'manager')
 
   return (
@@ -56,11 +57,11 @@ export function Sidebar() {
         <LogoMark />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-base font-bold text-white">{storeName}</span>
-          <span className="text-xs text-[#8FA79A]">Dyqani qendror</span>
+          <span className="truncate text-xs text-[#8FA79A]">{business.label}</span>
         </div>
       </div>
 
-      {mainNav.filter((item) => canAccess(item, role)).map((item) => (
+      {mainNavFor(business).filter((item) => canAccess(item, role)).map((item) => (
         <SidebarLink key={item.to} item={item} badge={item.to === '/stoku' ? lowStock : undefined} />
       ))}
 

@@ -17,6 +17,8 @@ export interface Store {
   id: string
   name: string
   active: boolean
+  /** Missing before migration 07 (then every store is a market). */
+  business_type?: string
   created_at: string
   users: number
   sales: number

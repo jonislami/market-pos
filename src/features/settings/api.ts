@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { businessProfile, type BusinessProfile, type BusinessType } from '@/lib/business'
 import { getDeviceStoreId } from '@/lib/deviceStore'
 import { cached } from '@/lib/offlineCache'
 import { useDeviceSettings } from '@/lib/printer/deviceSettings'
@@ -11,6 +12,7 @@ export const settingsKeys = {
   profiles: ['profiles', 'all'] as const,
   platformAdmin: ['platform-admin'] as const,
   stores: ['stores'] as const,
+  business: ['business-type'] as const,
 }
 
 export const DEFAULT_STORE_NAME = '[Emri i Marketit]'
@@ -69,6 +71,24 @@ export function cachedStoreName(): string {
 export function useStoreName(enabled = true): string {
   const s = useStoreSettings(enabled)
   return s.data?.store_name ?? cachedStoreName()
+}
+
+/** Business type of the signed-in store; "market" until migration 07 has been run. */
+export function useBusiness(enabled = true): BusinessProfile {
+  const q = useQuery({
+    queryKey: settingsKeys.business,
+    enabled,
+    staleTime: 10 * 60_000,
+    ...cached('business-type', async (): Promise<BusinessType> => {
+      const storeId = getDeviceStoreId()
+      if (!storeId) return 'market'
+      const { data, error } = await supabase.from('stores').select('business_type').eq('id', storeId).maybeSingle()
+      if (error?.code === '42703') return 'market' // column added by migration 07
+      if (error) throw error
+      return (data?.business_type as BusinessType | undefined) ?? 'market'
+    }),
+  })
+  return businessProfile(q.data)
 }
 
 export function useSaveStoreSettings() {
@@ -203,8 +223,16 @@ export function useStores(enabled = true) {
 export function useCreateStore() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ name, ownerId, ownerName }: { name: string; ownerId: string; ownerName: string }) => {
-      const { error } = await supabase.rpc('create_store', { p_name: name, p_owner_id: ownerId, p_owner_name: ownerName })
+    mutationFn: async ({ name, ownerId, ownerName, type }: { name: string; ownerId: string; ownerName: string; type: BusinessType }) => {
+      const args = { p_name: name, p_owner_id: ownerId, p_owner_name: ownerName }
+      const { error } = await supabase.rpc('create_store', { ...args, p_type: type })
+      if (error?.code === 'PGRST202' && type === 'market') {
+        // Before migration 07 create_store has no type; only markets exist then.
+        const { error: e } = await supabase.rpc('create_store', args)
+        if (e) throw e
+        return
+      }
+      if (error?.code === 'PGRST202') throw new Error('Llojet e bizneseve kërkojnë migrimin 07 në Supabase.')
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.stores }),
@@ -219,5 +247,20 @@ export function useSetStoreActive() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.stores }),
+  })
+}
+
+export function useSetStoreType() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, type }: { id: string; type: BusinessType }) => {
+      const { error } = await supabase.rpc('set_store_type', { p_store: id, p_type: type })
+      if (error?.code === 'PGRST202') throw new Error('Llojet e bizneseve kërkojnë migrimin 07 në Supabase.')
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: settingsKeys.stores })
+      void qc.invalidateQueries({ queryKey: settingsKeys.business })
+    },
   })
 }

@@ -14,6 +14,7 @@ import { InventoryTab } from './InventoryTab'
 import { MovementsTab } from './MovementsTab'
 import { LowStockCard, lowStockProducts, RecentMovementsCard, suggestedQty } from './SideCards'
 import { SuppliersTab } from './SuppliersTab'
+import { useBusiness } from '@/features/settings/api'
 
 type StockTab = 'entry' | 'history' | 'movements' | 'inventory' | 'suppliers'
 
@@ -28,6 +29,7 @@ const tabs: { value: StockTab; label: string }[] = [
 const isTab = (v: string | null): v is StockTab => tabs.some((t) => t.value === v)
 
 export function StockPage() {
+  const business = useBusiness()
   const [params, setParams] = useSearchParams()
   const tab: StockTab = isTab(params.get('tab')) ? (params.get('tab') as StockTab) : 'entry'
   const setTab = (t: StockTab) => setParams(t === 'entry' ? {} : { tab: t }, { replace: true })
@@ -74,7 +76,7 @@ export function StockPage() {
   return (
     <>
       <PageHeader
-        title="Stoku & Hyrjet"
+        title={business.terms.stock}
         subtitle={
           products.isPending ? (
             ' '

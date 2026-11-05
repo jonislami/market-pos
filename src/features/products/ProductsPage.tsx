@@ -5,6 +5,7 @@ import { Button, Card, Dialog, Input, Pagination, Select } from '@/components/ui
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import type { Product, VatRate } from '@/types/database'
+import { useBusiness } from '@/features/settings/api'
 import { useCategories, useProducts } from './api'
 import { CategoryChips, CategoryList, type CategoryCounts } from './CategoryList'
 import {
@@ -44,6 +45,7 @@ function FilterSelects({ filters, onChange }: { filters: ProductFilters; onChang
 }
 
 export function ProductsPage() {
+  const business = useBusiness()
   const products = useProducts()
   const categories = useCategories()
   const [filters, setFilters] = useState<ProductFilters>(defaultFilters)
@@ -100,7 +102,7 @@ export function ProductsPage() {
   return (
     <>
       <PageHeader
-        title="Produktet"
+        title={business.terms.products}
         subtitle={
           loading ? ' ' : `${counts.all} produkte në ${allCategories.length} kategori`
         }

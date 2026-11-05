@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom'
 import { Ellipsis } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { cn } from '@/lib/cn'
-import { canAccess, mainNav, settingsNav, type NavItem } from './nav'
+import { useBusiness } from '@/features/settings/api'
+import { canAccess, mainNavFor, settingsNav, type NavItem } from './nav'
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -16,7 +17,8 @@ const TAB_PATHS = ['/', '/arka', '/produktet', '/stoku']
 export function TabBar() {
   const { profile } = useAuth()
   const role = profile?.role
-  const tabs: NavItem[] = mainNav.filter((item) => TAB_PATHS.includes(item.to) && canAccess(item, role))
+  const business = useBusiness()
+  const tabs: NavItem[] = mainNavFor(business).filter((item) => TAB_PATHS.includes(item.to) && canAccess(item, role))
   const isCashier = role === 'cashier'
 
   return (
