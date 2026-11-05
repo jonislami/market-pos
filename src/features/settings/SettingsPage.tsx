@@ -11,9 +11,8 @@ import { StaffSection } from '@/features/staff/StaffSection'
 import { useActiveRegister, useBusiness, useIsPlatformAdmin } from './api'
 import { PrinterSection } from './PrinterSection'
 import { BackupSection, RegistersSection, StoreSection, UsersSection, VatSection } from './Sections'
-import { StoresSection } from './StoresSection'
 
-type SectionId = 'store' | 'printer' | 'users' | 'staff' | 'registers' | 'vat' | 'backup' | 'stores'
+type SectionId = 'store' | 'printer' | 'users' | 'staff' | 'registers' | 'vat' | 'backup'
 
 const managers: UserRole[] = ['admin', 'manager']
 const everyone: UserRole[] = ['admin', 'manager', 'cashier']
@@ -29,9 +28,6 @@ const SECTIONS: { id: SectionId; label: string; roles: UserRole[] }[] = [
 
 /** Workers with commission: salons (migration 08). */
 const STAFF_SECTION = { id: 'staff' as const, label: 'Punëtorët & Komisioni', roles: managers }
-
-/** Only for platform admins (whoever runs this installation for several markets). */
-const STORES_SECTION = { id: 'stores' as const, label: 'Dyqanet (platforma)', roles: ['admin'] as UserRole[] }
 
 function initials(name: string): string {
   return name
@@ -56,8 +52,6 @@ function SectionBody({ id }: { id: SectionId }) {
       return <VatSection />
     case 'backup':
       return <BackupSection />
-    case 'stores':
-      return <StoresSection />
     case 'staff':
       return <StaffSection />
   }
@@ -73,7 +67,7 @@ export function SettingsPage() {
   const business = useBusiness()
   // Workers come right after users; the platform section last.
   const sections = SECTIONS.flatMap((s) => (s.id === 'users' && business.type === 'salon' ? [s, STAFF_SECTION] : [s]))
-    .concat(isPlatformAdmin ? [STORES_SECTION] : []).filter((s) => role && s.roles.includes(role))
+.filter((s) => role && s.roles.includes(role))
   const requested = params.get('s') as SectionId | null
   const selected = sections.find((s) => s.id === requested)
   // Desktop always shows a section (printer by default); phones show the menu until one is chosen.
@@ -161,6 +155,12 @@ export function SettingsPage() {
                     <ChevronRight className="size-5 text-muted" aria-hidden />
                   </button>
                 ))}
+              {isPlatformAdmin && (
+                <Link to="/platforma" className="flex min-h-14 items-center justify-between px-4 text-[15px] text-ink no-underline hover:bg-[#F7F9F7] hover:text-ink">
+                  Platforma (të gjitha bizneset)
+                  <ChevronRight className="size-5 text-muted" aria-hidden />
+                </Link>
+              )}
               {role && managers.includes(role) && (
                 <Link to="/raportet" className="flex min-h-14 items-center justify-between px-4 text-[15px] text-ink no-underline hover:bg-[#F7F9F7] hover:text-ink">
                   Raportet

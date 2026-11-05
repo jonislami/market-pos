@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { Button } from '@/components/ui'
+import { LandingPage } from '@/features/landing/LandingPage'
 import type { UserRole } from '@/types/database'
 import { homePathFor } from './nav'
 
@@ -38,7 +39,8 @@ export function AuthGuard({ roles, children }: { roles?: UserRole[]; children: R
   const location = useLocation()
 
   if (loading) return <FullScreenLoader />
-  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  // Visitors on the front page see the public website; every other page asks them to log in.
+  if (!session) return location.pathname === '/' ? <LandingPage /> : <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (!profile || !profile.active) return <NoProfile />
   if (roles && !roles.includes(profile.role)) return <Navigate to={homePathFor(profile.role)} replace />
 

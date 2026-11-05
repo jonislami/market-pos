@@ -2,10 +2,10 @@ import { NavLink } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { LogoMark } from '@/components/Logo'
-import { useBusiness, useStoreName } from '@/features/settings/api'
+import { useBusiness, useIsPlatformAdmin, useStoreName } from '@/features/settings/api'
 import { cn } from '@/lib/cn'
 import { useLowStockCount } from '@/features/stock/useLowStockCount'
-import { canAccess, mainNavFor, roleLabels, settingsNav, type NavItem } from './nav'
+import { canAccess, mainNavFor, platformNav, roleLabels, settingsNav, type NavItem } from './nav'
 
 function initials(name: string): string {
   return name
@@ -46,6 +46,7 @@ export function Sidebar() {
   const name = profile?.full_name ?? ''
   const storeName = useStoreName()
   const business = useBusiness()
+  const isPlatformAdmin = useIsPlatformAdmin(role === 'admin').data === true
   const lowStock = useLowStockCount(role === 'admin' || role === 'manager')
 
   return (
@@ -67,6 +68,7 @@ export function Sidebar() {
 
       <div className="min-h-6 grow" />
 
+      {isPlatformAdmin && <SidebarLink item={platformNav} />}
       <SidebarLink item={settingsNav} />
       <button
         type="button"

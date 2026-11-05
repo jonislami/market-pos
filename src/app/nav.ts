@@ -1,4 +1,4 @@
-import { CalendarDays, ChartColumn, LayoutDashboard, Package, Settings, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
+import { Building2, CalendarDays, ChartColumn, LayoutDashboard, Package, Settings, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
 import type { BusinessProfile } from '@/lib/business'
 import type { UserRole } from '@/types/database'
 
@@ -25,6 +25,15 @@ export function mainNavFor(business: BusinessProfile): NavItem[] {
     { to: '/stoku', label: terms.stock, tabLabel: 'Stoku', icon: Truck, roles: managers },
     { to: '/raportet', label: 'Raportet', tabLabel: 'Raportet', icon: ChartColumn, roles: managers },
   ]
+}
+
+/** Platform admins only: all businesses on the installation. */
+export const platformNav: NavItem = {
+  to: '/platforma',
+  label: 'Platforma',
+  tabLabel: 'Platforma',
+  icon: Building2,
+  roles: ['admin'],
 }
 
 export const settingsNav: NavItem = {

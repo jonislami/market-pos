@@ -7,6 +7,7 @@ import { ProductsPage } from '@/features/products/ProductsPage'
 import { StockPage } from '@/features/stock/StockPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { AppointmentsPage } from '@/features/staff/AppointmentsPage'
+import { PlatformPage } from '@/features/platform/PlatformPage'
 import type { UserRole } from '@/types/database'
 import { AppLayout } from './AppLayout'
 import { AuthGuard } from './AuthGuard'
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: 'stoku', element: <AuthGuard roles={managers}><StockPage /></AuthGuard> },
       { path: 'raportet', element: <AuthGuard roles={managers}><ReportsPage /></AuthGuard> },
       { path: 'cilesimet', element: <SettingsPage /> },
+      { path: 'platforma', element: <AuthGuard roles={['admin']}><PlatformPage /></AuthGuard> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

@@ -22,6 +22,9 @@ export interface Store {
   created_at: string
   users: number
   sales: number
+  /** Owner (first admin) of the business; added to list_stores by migration 09. */
+  owner_name?: string | null
+  owner_email?: string | null
 }
 
 export type Unit = 'cope' | 'kg' | 'pako' | 'liter'

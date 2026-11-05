@@ -220,25 +220,6 @@ export function useStores(enabled = true) {
   })
 }
 
-export function useCreateStore() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ name, ownerId, ownerName, type }: { name: string; ownerId: string; ownerName: string; type: BusinessType }) => {
-      const args = { p_name: name, p_owner_id: ownerId, p_owner_name: ownerName }
-      const { error } = await supabase.rpc('create_store', { ...args, p_type: type })
-      if (error?.code === 'PGRST202' && type === 'market') {
-        // Before migration 07 create_store has no type; only markets exist then.
-        const { error: e } = await supabase.rpc('create_store', args)
-        if (e) throw e
-        return
-      }
-      if (error?.code === 'PGRST202') throw new Error('Llojet e bizneseve kërkojnë migrimin 07 në Supabase.')
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.stores }),
-  })
-}
-
 export function useSetStoreActive() {
   const qc = useQueryClient()
   return useMutation({
@@ -247,20 +228,5 @@ export function useSetStoreActive() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: settingsKeys.stores }),
-  })
-}
-
-export function useSetStoreType() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id, type }: { id: string; type: BusinessType }) => {
-      const { error } = await supabase.rpc('set_store_type', { p_store: id, p_type: type })
-      if (error?.code === 'PGRST202') throw new Error('Llojet e bizneseve kërkojnë migrimin 07 në Supabase.')
-      if (error) throw error
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: settingsKeys.stores })
-      void qc.invalidateQueries({ queryKey: settingsKeys.business })
-    },
   })
 }

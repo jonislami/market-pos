@@ -14,7 +14,8 @@ export default defineConfig({
         short_name: 'Arka',
         description: 'Arka, stoku dhe raportet për marketin',
         lang: 'sq',
-        start_url: '/',
+        // The installed app opens on the login (or straight into the app when signed in), not the website.
+        start_url: '/login',
         scope: '/',
         display: 'standalone',
         background_color: '#F4F6F3',
