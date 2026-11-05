@@ -1,4 +1,4 @@
-import { ChartColumn, LayoutDashboard, Package, Settings, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
+import { CalendarDays, ChartColumn, LayoutDashboard, Package, Settings, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
 import type { BusinessProfile } from '@/lib/business'
 import type { UserRole } from '@/types/database'
 
@@ -20,6 +20,7 @@ export function mainNavFor(business: BusinessProfile): NavItem[] {
   return [
     { to: '/', label: 'Paneli', tabLabel: 'Paneli', icon: LayoutDashboard, roles: managers },
     { to: '/arka', label: 'Arka / Shitja', tabLabel: 'Arka', icon: ShoppingCart, roles: everyone },
+    ...(business.type === 'salon' ? [{ to: '/terminet', label: 'Terminet', tabLabel: 'Terminet', icon: CalendarDays, roles: everyone }] : []),
     { to: '/produktet', label: terms.products, tabLabel: terms.products.split(' ')[0], icon: Package, roles: managers },
     { to: '/stoku', label: terms.stock, tabLabel: 'Stoku', icon: Truck, roles: managers },
     { to: '/raportet', label: 'Raportet', tabLabel: 'Raportet', icon: ChartColumn, roles: managers },

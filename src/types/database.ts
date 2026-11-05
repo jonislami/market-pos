@@ -47,7 +47,13 @@ export interface Product {
   min_stock: number
   show_in_pos: boolean
   active: boolean
+  /** Services have no stock (migration 08); undefined before it means "product". */
+  kind?: ProductKind
+  /** Minutes, for services and appointments. */
+  duration_min?: number | null
 }
+
+export type ProductKind = 'product' | 'service'
 
 /** Columns a manager may write; `stock` changes only through RPCs. */
 export type ProductInput = Omit<Product, 'id' | 'stock'>
@@ -55,8 +61,31 @@ export type ProductInput = Omit<Product, 'id' | 'stock'>
 /** Row of the `pos_products` view: what the register may see (no purchase price). */
 export type PosProduct = Pick<
   Product,
-  'id' | 'barcode' | 'name' | 'category_id' | 'unit' | 'sale_price' | 'vat_rate' | 'stock' | 'min_stock'
+  'id' | 'barcode' | 'name' | 'category_id' | 'unit' | 'sale_price' | 'vat_rate' | 'stock' | 'min_stock' | 'kind' | 'duration_min'
 >
+
+/** A worker of the store (salon): not necessarily an app user. Migration 08. */
+export interface Staff {
+  id: number
+  name: string
+  commission_pct: number
+  color: string
+  active: boolean
+}
+
+export type AppointmentStatus = 'booked' | 'done' | 'cancelled' | 'no_show'
+
+export interface Appointment {
+  id: number
+  staff_id: number | null
+  product_id: number | null
+  customer_name: string
+  customer_phone: string | null
+  starts_at: string
+  duration_min: number
+  status: AppointmentStatus
+  note: string | null
+}
 
 export interface StoreSettings {
   store_name: string

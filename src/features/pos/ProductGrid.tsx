@@ -11,6 +11,9 @@ const stockText = {
 }
 
 export function StockLabel({ p, className }: { p: PosProduct; className?: string }) {
+  if (p.kind === 'service') {
+    return <span className={cn('text-xs text-muted', className)}>{p.duration_min ? `${p.duration_min} min` : 'Shërbim'}</span>
+  }
   return (
     <span className={cn('text-xs tabular-nums', stockText[stockStatus(p.stock, p.min_stock)], className)}>
       {formatQty(p.stock)} {UNIT_LABELS[p.unit]}

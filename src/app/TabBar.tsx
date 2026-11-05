@@ -11,14 +11,16 @@ const tabClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'font-bold text-brand-600 hover:text-brand-600' : 'font-medium text-muted hover:text-ink',
   )
 
-// Raportet lives under "Më shumë" on phones to keep the bar at five items.
+// Raportet lives under "Më shumë" on phones to keep the bar at five items; salons swap Stoku for Terminet.
 const TAB_PATHS = ['/', '/arka', '/produktet', '/stoku']
+const SALON_TAB_PATHS = ['/', '/arka', '/terminet', '/produktet']
 
 export function TabBar() {
   const { profile } = useAuth()
   const role = profile?.role
   const business = useBusiness()
-  const tabs: NavItem[] = mainNavFor(business).filter((item) => TAB_PATHS.includes(item.to) && canAccess(item, role))
+  const paths = business.type === 'salon' ? SALON_TAB_PATHS : TAB_PATHS
+  const tabs: NavItem[] = mainNavFor(business).filter((item) => paths.includes(item.to) && canAccess(item, role))
   const isCashier = role === 'cashier'
 
   return (

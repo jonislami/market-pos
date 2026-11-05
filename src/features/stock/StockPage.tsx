@@ -49,7 +49,8 @@ export function StockPage() {
     return () => window.clearTimeout(t)
   }, [notice])
 
-  const allProducts = useMemo(() => products.data ?? [], [products.data])
+  // Services have no stock: they are left out of entries, inventory and movements.
+  const allProducts = useMemo(() => (products.data ?? []).filter((p) => p.kind !== 'service'), [products.data])
   const low = useMemo(() => lowStockProducts(allProducts), [allProducts])
   const value = useMemo(() => stockValue(allProducts), [allProducts])
 

@@ -3,8 +3,10 @@ import { cached } from '@/lib/offlineCache'
 import { supabase } from '@/lib/supabase'
 import type { Category, Product, ProductInput } from '@/types/database'
 
-export const PRODUCT_COLUMNS =
-  'id, barcode, name, category_id, unit, cost_price, sale_price, vat_rate, stock, min_stock, show_in_pos, active'
+// `*` so kind/duration_min (migration 08) come along once they exist.
+export const PRODUCT_COLUMNS = '*'
+
+export const isService = (p: { kind?: string | null }) => p.kind === 'service'
 
 export const productKeys = {
   all: ['products'] as const,
@@ -22,7 +24,15 @@ function toProduct(row: Record<string, unknown>): Product {
     vat_rate: Number(row.vat_rate) as Product['vat_rate'],
     stock: Number(row.stock),
     min_stock: Number(row.min_stock),
+    kind: row.kind === 'service' ? 'service' : 'product',
+    duration_min: row.duration_min == null ? null : Number(row.duration_min),
   }
+}
+
+/** Before migration 08 the columns don't exist: kind/duration are sent only when the form set them. */
+function toRow(input: ProductInput): Record<string, unknown> {
+  const { kind, duration_min, ...rest } = input
+  return kind ? { ...rest, kind, duration_min: kind === 'service' ? (duration_min ?? null) : null } : rest
 }
 
 /**
@@ -65,8 +75,8 @@ export function useSaveProduct() {
   return useMutation({
     mutationFn: async ({ id, input }: { id?: number; input: ProductInput }): Promise<Product> => {
       const query = id
-        ? supabase.from('products').update({ ...input, updated_at: new Date().toISOString() }).eq('id', id)
-        : supabase.from('products').insert(input)
+        ? supabase.from('products').update({ ...toRow(input), updated_at: new Date().toISOString() }).eq('id', id)
+        : supabase.from('products').insert(toRow(input))
       const { data, error } = await query.select(PRODUCT_COLUMNS).single()
       if (error) throw error
       return toProduct(data)

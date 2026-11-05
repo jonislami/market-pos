@@ -11,7 +11,7 @@ import type { PaymentMethod, Sale } from '@/types/database'
  * is not created twice (needs migration 05).
  */
 export interface SaleRequest {
-  items: { product_id: number; quantity: number }[]
+  items: { product_id: number; quantity: number; staff_id?: number | null }[]
   payment: PaymentMethod
   paid: number | null
   registerId: number

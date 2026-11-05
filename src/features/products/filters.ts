@@ -37,6 +37,8 @@ export function filterProducts(products: Product[], f: ProductFilters): Product[
     if (f.stock === 'inactive' ? p.active : !p.active) return false
     if (f.category === 'none' ? p.category_id !== null : f.category !== 'all' && p.category_id !== f.category) return false
     if (f.vat !== 'all' && p.vat_rate !== f.vat) return false
+    // Services have no stock, so they never count as low or out of stock.
+    if ((f.stock === 'low' || f.stock === 'out') && p.kind === 'service') return false
     if (f.stock === 'low' && stockStatus(p.stock, p.min_stock) === 'ok') return false
     if (f.stock === 'out' && p.stock > 0) return false
     if (q && !normalizeText(p.name).includes(q) && !(p.barcode ?? '').includes(q)) return false

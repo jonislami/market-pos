@@ -6,6 +6,7 @@ import { PosPage } from '@/features/pos/PosPage'
 import { ProductsPage } from '@/features/products/ProductsPage'
 import { StockPage } from '@/features/stock/StockPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
+import { AppointmentsPage } from '@/features/staff/AppointmentsPage'
 import type { UserRole } from '@/types/database'
 import { AppLayout } from './AppLayout'
 import { AuthGuard } from './AuthGuard'
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AuthGuard roles={managers}><DashboardPage /></AuthGuard> },
       { path: 'arka', element: <PosPage /> },
+      { path: 'terminet', element: <AppointmentsPage /> },
       { path: 'produktet', element: <AuthGuard roles={managers}><ProductsPage /></AuthGuard> },
       { path: 'stoku', element: <AuthGuard roles={managers}><StockPage /></AuthGuard> },
       { path: 'raportet', element: <AuthGuard roles={managers}><ReportsPage /></AuthGuard> },

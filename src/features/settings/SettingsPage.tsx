@@ -7,12 +7,13 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { cn } from '@/lib/cn'
 import { usePrinterState } from '@/lib/printer/bluetooth'
 import type { UserRole } from '@/types/database'
-import { useActiveRegister, useIsPlatformAdmin } from './api'
+import { StaffSection } from '@/features/staff/StaffSection'
+import { useActiveRegister, useBusiness, useIsPlatformAdmin } from './api'
 import { PrinterSection } from './PrinterSection'
 import { BackupSection, RegistersSection, StoreSection, UsersSection, VatSection } from './Sections'
 import { StoresSection } from './StoresSection'
 
-type SectionId = 'store' | 'printer' | 'users' | 'registers' | 'vat' | 'backup' | 'stores'
+type SectionId = 'store' | 'printer' | 'users' | 'staff' | 'registers' | 'vat' | 'backup' | 'stores'
 
 const managers: UserRole[] = ['admin', 'manager']
 const everyone: UserRole[] = ['admin', 'manager', 'cashier']
@@ -25,6 +26,9 @@ const SECTIONS: { id: SectionId; label: string; roles: UserRole[] }[] = [
   { id: 'vat', label: 'TVSH & Taksat', roles: managers },
   { id: 'backup', label: 'Kopje rezervë (Backup)', roles: managers },
 ]
+
+/** Workers with commission: salons (migration 08). */
+const STAFF_SECTION = { id: 'staff' as const, label: 'Punëtorët & Komisioni', roles: managers }
 
 /** Only for platform admins (whoever runs this installation for several markets). */
 const STORES_SECTION = { id: 'stores' as const, label: 'Dyqanet (platforma)', roles: ['admin'] as UserRole[] }
@@ -54,6 +58,8 @@ function SectionBody({ id }: { id: SectionId }) {
       return <BackupSection />
     case 'stores':
       return <StoresSection />
+    case 'staff':
+      return <StaffSection />
   }
 }
 
@@ -64,7 +70,10 @@ export function SettingsPage() {
   const printer = usePrinterState()
 
   const isPlatformAdmin = useIsPlatformAdmin(role === 'admin').data === true
-  const sections = [...SECTIONS, ...(isPlatformAdmin ? [STORES_SECTION] : [])].filter((s) => role && s.roles.includes(role))
+  const business = useBusiness()
+  // Workers come right after users; the platform section last.
+  const sections = SECTIONS.flatMap((s) => (s.id === 'users' && business.type === 'salon' ? [s, STAFF_SECTION] : [s]))
+    .concat(isPlatformAdmin ? [STORES_SECTION] : []).filter((s) => role && s.roles.includes(role))
   const requested = params.get('s') as SectionId | null
   const selected = sections.find((s) => s.id === requested)
   // Desktop always shows a section (printer by default); phones show the menu until one is chosen.

@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn'
 import { formatMoney } from '@/lib/money'
 import { parseDecimal } from '@/lib/text'
 import { allowsDecimals, formatQty, UNIT_LABELS } from '@/lib/units'
+import type { Staff } from '@/types/database'
 import type { CartItem, CartTotals } from './cart'
 import { normalizeQty } from './cart'
 
@@ -76,14 +77,18 @@ interface LinesProps {
   onRemove: (productId: number) => void
   focusId: number | null
   size: 'sm' | 'lg'
+  /** Salons: workers to pick per line. */
+  staff?: Staff[]
+  onStaff?: (productId: number, staffId: number | null) => void
 }
 
-export function CartLines({ items, onQty, onRemove, focusId, size }: LinesProps) {
+export function CartLines({ items, onQty, onRemove, focusId, size, staff, onStaff }: LinesProps) {
   return (
     <ul className="flex flex-col">
       {items.map((item) => {
         const p = item.product
-        const overStock = p && item.qty > p.stock
+        const overStock = p && p.kind !== 'service' && item.qty > p.stock
+        const worker = staff?.find((s) => s.id === item.staffId)
         return (
           <li key={item.productId} className={cn('flex items-center gap-3 border-b border-[#EEF1EE] last:border-b-0', size === 'lg' ? 'py-3.5' : 'py-3')}>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -98,6 +103,24 @@ export function CartLines({ items, onQty, onRemove, focusId, size }: LinesProps)
                 </span>
               ) : (
                 <span className="text-xs text-warn-700">Nuk shitet më në arkë – hiqe nga fatura</span>
+              )}
+              {p && staff && staff.length > 0 && onStaff && (
+                <label className="flex items-center gap-1.5 text-xs text-muted">
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: worker?.color ?? '#CBD5CE' }} aria-hidden />
+                  <span className="sr-only">Punëtori për {p.name}</span>
+                  <select
+                    value={item.staffId ?? ''}
+                    onChange={(e) => onStaff(item.productId, e.target.value ? Number(e.target.value) : null)}
+                    className="min-h-8 max-w-[160px] rounded-md bg-transparent pr-1 font-medium text-ink focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+                  >
+                    <option value="">Pa punëtor</option>
+                    {staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
             </div>
             {p ? (

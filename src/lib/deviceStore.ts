@@ -12,6 +12,7 @@ const STORE_SCOPED_KEYS = [
   'market-pos.inventory-counts',
   'market-pos.last-pin-user',
   'market-pos.store-name',
+  'market-pos.pos-staff',
 ]
 
 export function getDeviceStoreId(): string | null {

@@ -9,6 +9,8 @@ import { errorMessage } from '@/lib/errors'
 import { formatMoney, formatReceiptNo, roundMoney } from '@/lib/money'
 import { formatPercent } from '@/lib/text'
 import { formatQty, UNIT_LABELS } from '@/lib/units'
+import { useBusiness } from '@/features/settings/api'
+import { useCommissions } from '@/features/staff/api'
 import { useCashierReport, useDailyReport, useSaleItems, useSalesList, useTopProducts, useVatReport, type DailyRow, type SaleRow } from './api'
 import { exportSalesReport } from './exportReport'
 import { defaultSettings, useRegisters, useStoreSettings } from '@/features/settings/api'
@@ -80,6 +82,8 @@ export function ReportsPage() {
   const top = useTopProducts(from, to, 15, 'revenue')
   const vat = useVatReport(from, to)
   const cashiers = useCashierReport(from, to)
+  const isSalon = useBusiness().type === 'salon'
+  const commissions = useCommissions(from, to, isSalon)
   const [salesPage, setSalesPage] = useState(1)
   const sales = useSalesList(from, to, salesPage, SALES_PAGE)
   const names = useProfileNames()
@@ -272,6 +276,41 @@ export function ReportsPage() {
                   </TBody>
                 </Table>
               </Card>
+
+              {isSalon && (
+                <Card padded={false}>
+                  <h2 className="p-5 pb-3 text-base font-semibold">Komisioni i punëtorëve</h2>
+                  <Table shaded>
+                    <THead>
+                      <TR>
+                        <TH className="pl-5">Punëtori</TH>
+                        <TH num>Shërbime</TH>
+                        <TH num>Qarkullimi</TH>
+                        <TH num className="pr-5">Komisioni</TH>
+                      </TR>
+                    </THead>
+                    <TBody>
+                      {(commissions.data ?? []).map((c) => (
+                        <TR key={c.staff_id}>
+                          <TD className="pl-5">{c.name}</TD>
+                          <TD num>{c.lines}</TD>
+                          <TD num>{formatMoney(c.revenue)}</TD>
+                          <TD num className="pr-5 font-semibold">
+                            {formatMoney(c.commission)}
+                          </TD>
+                        </TR>
+                      ))}
+                      {!commissions.data?.length && (
+                        <TR>
+                          <TD colSpan={4} className="pl-5 text-muted">
+                            {commissions.isError ? errorMessage(commissions.error) : '—'}
+                          </TD>
+                        </TR>
+                      )}
+                    </TBody>
+                  </Table>
+                </Card>
+              )}
             </div>
           </div>
 

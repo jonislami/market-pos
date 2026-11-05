@@ -7,11 +7,14 @@ import type { PosProduct, VatRate } from '@/types/database'
 export interface CartLine {
   productId: number
   qty: number
+  /** Worker who does this line (salons); credited with the commission. */
+  staffId?: number | null
 }
 
 export interface CartItem {
   productId: number
   qty: number
+  staffId?: number | null
   /** Undefined when the product is no longer sold at the register. */
   product?: PosProduct
   lineTotal: number
@@ -95,6 +98,16 @@ function writeStorage(key: string, value: unknown) {
 const CART_KEY = 'market-pos.cart'
 const HELD_KEY = 'market-pos.held-carts'
 
+/** Adds a line to the register's saved cart from another page (e.g. an appointment being paid). */
+export function addToStoredCart(line: CartLine) {
+  const lines = readStorage<CartLine[]>(CART_KEY, [])
+  const existing = lines.find((l) => l.productId === line.productId)
+  const next = existing
+    ? [{ ...existing, qty: existing.qty + line.qty, staffId: line.staffId ?? existing.staffId }, ...lines.filter((l) => l !== existing)]
+    : [line, ...lines]
+  writeStorage(CART_KEY, next)
+}
+
 export interface HeldCart {
   id: string
   savedAt: string
@@ -109,13 +122,17 @@ export function useCart() {
   useEffect(() => writeStorage(CART_KEY, lines), [lines])
   useEffect(() => writeStorage(HELD_KEY, held), [held])
 
-  /** Adds qty to an existing line (moving it to the top) or creates one. */
-  const add = useCallback((productId: number, qty = 1) => {
+  /** Adds qty to an existing line (moving it to the top, keeping its worker) or creates one. */
+  const add = useCallback((productId: number, qty = 1, staffId: number | null = null) => {
     setLines((ls) => {
       const existing = ls.find((l) => l.productId === productId)
-      if (!existing) return [{ productId, qty }, ...ls]
-      return [{ productId, qty: existing.qty + qty }, ...ls.filter((l) => l.productId !== productId)]
+      if (!existing) return [{ productId, qty, staffId }, ...ls]
+      return [{ ...existing, qty: existing.qty + qty }, ...ls.filter((l) => l.productId !== productId)]
     })
+  }, [])
+
+  const setStaff = useCallback((productId: number, staffId: number | null) => {
+    setLines((ls) => ls.map((l) => (l.productId === productId ? { ...l, staffId } : l)))
   }, [])
 
   const setQty = useCallback((productId: number, qty: number) => {
@@ -147,8 +164,8 @@ export function useCart() {
   const discardHeld = useCallback((id: string) => setHeld((h) => h.filter((c) => c.id !== id)), [])
 
   return useMemo(
-    () => ({ lines, held, add, setQty, remove, clear, hold, restore, discardHeld }),
-    [lines, held, add, setQty, remove, clear, hold, restore, discardHeld],
+    () => ({ lines, held, add, setQty, setStaff, remove, clear, hold, restore, discardHeld }),
+    [lines, held, add, setQty, setStaff, remove, clear, hold, restore, discardHeld],
   )
 }
 

@@ -17,7 +17,7 @@ async function fetchPosProducts(): Promise<PosProduct[]> {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('pos_products')
-      .select('id, barcode, name, category_id, unit, sale_price, vat_rate, stock, min_stock')
+      .select('*') // the view exposes only what the register may see; kind/duration_min after migration 08
       .order('name')
       .order('id')
       .range(from, from + PAGE - 1)
@@ -29,6 +29,8 @@ async function fetchPosProducts(): Promise<PosProduct[]> {
         vat_rate: Number(r.vat_rate) as PosProduct['vat_rate'],
         stock: Number(r.stock),
         min_stock: Number(r.min_stock),
+        kind: r.kind === 'service' ? 'service' : 'product',
+        duration_min: r.duration_min == null ? null : Number(r.duration_min),
       })),
     )
     if (data.length < PAGE) return all

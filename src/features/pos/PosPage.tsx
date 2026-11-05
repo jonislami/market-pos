@@ -11,7 +11,8 @@ import { normalizeText } from '@/lib/text'
 import { allowsDecimals } from '@/lib/units'
 import type { PosProduct, Sale } from '@/types/database'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { defaultSettings, useActiveRegister, useStoreSettings } from '@/features/settings/api'
+import { defaultSettings, useActiveRegister, useBusiness, useStoreSettings } from '@/features/settings/api'
+import { useStaff } from '@/features/staff/api'
 import { bluetoothSupported } from '@/lib/printer/bluetooth'
 import { preferredPrintMethod, printReceipt } from '@/lib/printer/print'
 import type { ReceiptData, ReceiptItem } from '@/lib/printer/receipt'
@@ -22,6 +23,7 @@ import { computeTotals, useCart, type HeldCart } from './cart'
 import { CartLines, CartTotalsBox } from './CartLines'
 import { cashInfo, Kbd, PaymentDialog, PaymentPanel, SaleDoneDialog, type PaymentState, type PrintStatus } from './Payment'
 import { ProductGrid, ProductResults } from './ProductGrid'
+import { StaffPicker, useCurrentStaff } from './StaffPicker'
 
 const GRID_STEP = 60
 const SEARCH_ID = 'pos-search'
@@ -44,6 +46,10 @@ export function PosPage() {
   const { profile } = useAuth()
   const createSale = useCreateSale()
   const cart = useCart()
+  const business = useBusiness()
+  const staffQuery = useStaff(business.type === 'salon')
+  const staff = useMemo(() => (staffQuery.data ?? []).filter((s) => s.active), [staffQuery.data])
+  const [currentStaff, setCurrentStaff] = useCurrentStaff(staff)
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null)
   /** Temporary number of a sale saved offline. */
   const [saleLabel, setSaleLabel] = useState<string | null>(null)
@@ -96,14 +102,14 @@ export function PosPage() {
 
   const addProduct = useCallback(
     (p: PosProduct, opts: { fromScan?: boolean } = {}) => {
-      cart.add(p.id, 1)
+      cart.add(p.id, 1, currentStaff)
       setPayError(null)
       if (opts.fromScan) beep('ok')
       // Weighed products: jump to the quantity field so the cashier types the weight.
       if (allowsDecimals(p.unit)) setFocusId(p.id)
       else setFocusId(null)
     },
-    [cart],
+    [cart, currentStaff],
   )
 
   /** Barcode from the USB scanner (typed into search + Enter) or the camera. */
@@ -156,7 +162,7 @@ export function PosPage() {
     }))
     createSale.mutate(
       {
-        items: totals.items.map((i) => ({ product_id: i.productId, quantity: i.qty })),
+        items: totals.items.map((i) => ({ product_id: i.productId, quantity: i.qty, staff_id: i.staffId ?? null })),
         payment: payment.method,
         paid: payment.method === 'cash' ? (cash.paid ?? expected) : null,
         registerId: register.id,
@@ -444,7 +450,10 @@ export function PosPage() {
                   <p className="py-6 text-center text-sm text-muted">Asnjë produkt nuk u gjet.</p>
                 )
               ) : totals.items.length ? (
-                <CartLines items={totals.items} onQty={cart.setQty} onRemove={cart.remove} focusId={focusId} size="lg" />
+                <>
+                  {staff.length > 0 && <StaffPicker staff={staff} value={currentStaff} onChange={setCurrentStaff} />}
+                  <CartLines items={totals.items} onQty={cart.setQty} onRemove={cart.remove} focusId={focusId} size="lg" staff={staff} onStaff={cart.setStaff} />
+                </>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-12 text-center text-muted">
                   <Barcode className="size-10" aria-hidden />
@@ -504,9 +513,14 @@ export function PosPage() {
           </Button>
         </div>
 
+        {staff.length > 0 && (
+          <div className="border-b border-line px-5 py-3">
+            <StaffPicker staff={staff} value={currentStaff} onChange={setCurrentStaff} />
+          </div>
+        )}
         <div className="min-h-[120px] flex-1 overflow-y-auto px-5">
           {totals.items.length ? (
-            <CartLines items={totals.items} onQty={cart.setQty} onRemove={cart.remove} focusId={focusId} size="sm" />
+            <CartLines items={totals.items} onQty={cart.setQty} onRemove={cart.remove} focusId={focusId} size="sm" staff={staff} onStaff={cart.setStaff} />
           ) : (
             <p className="py-10 text-center text-sm text-muted">Fatura është bosh.</p>
           )}

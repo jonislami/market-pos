@@ -22,6 +22,7 @@ function MarginText({ p }: { p: Product }) {
 
 /** Stock number, highlighted as a badge when low or critical. */
 function StockValue({ p, withUnit }: { p: Product; withUnit?: boolean }) {
+  if (p.kind === 'service') return <span className="text-muted">Shërbim{p.duration_min ? ` · ${p.duration_min} min` : ''}</span>
   const text = withUnit ? `${formatQty(p.stock)} ${UNIT_LABELS[p.unit]}` : formatQty(p.stock)
   const status = stockStatus(p.stock, p.min_stock)
   if (status === 'ok') return <span className="tabular-nums">{text}</span>
